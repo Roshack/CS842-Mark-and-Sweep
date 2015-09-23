@@ -31,16 +31,6 @@ extern "C" {
 #include <alloca.h>
 #endif
 
-#include "thread-locals.h"
-#include "threads.h"
-
-/* debugging flags */
-#ifdef GGGGC_DEBUG
-#define GGGGC_DEBUG_MEMORY_CORRUPTION 1
-#define GGGGC_DEBUG_REPORT_COLLECTIONS 1
-#define GGGGC_DEBUG_TINY_HEAP 1
-#endif
-
 /* flags to disable GCC features */
 #ifdef GGGGC_NO_GNUC_FEATURES
 #define GGGGC_NO_GNUC_CLEANUP 1
@@ -52,16 +42,8 @@ extern "C" {
 typedef size_t ggc_size_t;
 #endif
 
-#ifndef GGGGC_GENERATIONS
-#define GGGGC_GENERATIONS 2
-#endif
-
 #ifndef GGGGC_POOL_SIZE
 #define GGGGC_POOL_SIZE 24 /* pool size as a power of 2 */
-#endif
-
-#ifndef GGGGC_CARD_SIZE
-#define GGGGC_CARD_SIZE 12 /* also a power of 2 */
 #endif
 
 /* various sizes and masks */
@@ -70,12 +52,6 @@ typedef size_t ggc_size_t;
 #define GGGGC_POOL_OUTER_MASK ((ggc_size_t) -1 << GGGGC_POOL_SIZE)
 #define GGGGC_POOL_INNER_MASK (~GGGGC_POOL_OUTER_MASK)
 #define GGGGC_POOL_OF(ptr) ((struct GGGGC_Pool *) ((ggc_size_t) (ptr) & GGGGC_POOL_OUTER_MASK))
-#define GGGGC_GEN_OF(ptr) (GGGGC_POOL_OF(ptr)->gen)
-#define GGGGC_CARD_BYTES ((ggc_size_t) 1 << GGGGC_CARD_SIZE)
-#define GGGGC_CARD_OUTER_MASK ((ggc_size_t) -1 << GGGGC_CARD_SIZE)
-#define GGGGC_CARD_INNER_MASK (~GGGGC_CARD_OUTER_MASK)
-#define GGGGC_CARDS_PER_POOL ((ggc_size_t) 1 << (GGGGC_POOL_SIZE-GGGGC_CARD_SIZE))
-#define GGGGC_CARD_OF(ptr) (((ggc_size_t) (ptr) & GGGGC_POOL_INNER_MASK) >> GGGGC_CARD_SIZE)
 #define GGGGC_BITS_PER_WORD (8*sizeof(ggc_size_t))
 #define GGGGC_WORDS_PER_POOL (GGGGC_POOL_BYTES/sizeof(ggc_size_t))
 
@@ -84,20 +60,8 @@ typedef size_t ggc_size_t;
 
 /* GC pool (forms a list) */
 struct GGGGC_Pool {
-#if GGGGC_GENERATIONS > 1
-    /* the remembered set for this pool. NOTE: It's important this be first to
-     * make assigning to the remembered set take one less operation */
-    unsigned char remember[GGGGC_CARDS_PER_POOL];
-
-    /* the locations of objects within the cards */
-    unsigned short firstObject[GGGGC_CARDS_PER_POOL];
-#endif
-
     /* the next pool in this generation */
     struct GGGGC_Pool *next;
-
-    /* the generation of this pool */
-    unsigned char gen;
 
     /* the current free space and end of the pool */
     ggc_size_t *free, *end;
@@ -105,26 +69,13 @@ struct GGGGC_Pool {
     /* how much survived the last collection */
     ggc_size_t survivors;
 
-    /* size of the break table (in entries, used only during collection) */
-    ggc_size_t breakTableSize;
-
-    /* pointer to the break table (used only during collection) */
-    void *breakTable;
-
     /* and the actual content */
     ggc_size_t start[1];
 };
 
-#ifdef GGGGC_DEBUG_MEMORY_CORRUPTION
-#define GGGGC_MEMORY_CORRUPTION_VAL 0x0DEFACED
-#endif
-
 /* GC header (this shape must be shared by all GC'd objects) */
 struct GGGGC_Header {
     struct GGGGC_Descriptor *descriptor__ptr;
-#ifdef GGGGC_DEBUG_MEMORY_CORRUPTION
-    ggc_size_t ggggc_memoryCorruptionCheck;
-#endif
 };
 
 /* GGGGC descriptors are GC objects that describe the shape of other GC objects */
@@ -135,17 +86,12 @@ struct GGGGC_Descriptor {
     ggc_size_t pointers[1]; /* location of pointers within the object (as a special
                          * case, if pointers[0]|1==0, this means "no pointers") */
 };
-#ifdef GGGGC_DEBUG_MEMORY_CORRUPTION
-#define GGGGC_DESCRIPTOR_DESCRIPTION 0x5 /* first and third words are pointers */
-#else
 #define GGGGC_DESCRIPTOR_DESCRIPTION 0x3 /* first two words are pointers */
-#endif
 #define GGGGC_DESCRIPTOR_WORDS_REQ(sz) (((sz) + GGGGC_BITS_PER_WORD - 1) / GGGGC_BITS_PER_WORD)
 
 /* descriptor slots are global locations where descriptors may eventually be
  * stored */
 struct GGGGC_DescriptorSlot {
-    ggc_mutex_t lock;
     struct GGGGC_Descriptor *descriptor;
     ggc_size_t size;
     ggc_size_t pointers;
@@ -184,7 +130,6 @@ static type ## __descriptorSlotConstructor type ## __descriptorSlotConstructorIn
 
 #define GGC_DESCRIPTOR(type, pointers) \
     static struct GGGGC_DescriptorSlot type ## __descriptorSlot = { \
-        GGC_MUTEX_INITIALIZER, \
         NULL, \
         (sizeof(struct type ## __ggggc_struct) + sizeof(ggc_size_t) - 1) / sizeof(ggc_size_t), \
         ((ggc_size_t)0) pointers \
@@ -238,25 +183,11 @@ static type ## __descriptorSlotConstructor type ## __descriptorSlotConstructorIn
 } while(0)
 
 /* write barriers */
-#if GGGGC_GENERATIONS > 1
-#define GGGGC_WP(object, member, value) do { \
-    ggc_size_t ggggc_o = (ggc_size_t) (object); \
-    struct GGGGC_Pool *ggggc_pool = GGGGC_POOL_OF(ggggc_o); \
-    GGGGC_ASSERT_ID(object); \
-    GGGGC_ASSERT_ID(value); \
-    if (ggggc_pool->gen) { \
-        /* a high-gen object, let's remember it */ \
-        ggggc_pool->remember[GGGGC_CARD_OF(ggggc_o)] = 1; \
-    } \
-    (object)->member = (value); \
-} while(0)
-#else
 #define GGGGC_WP(object, member, value) do { \
     GGGGC_ASSERT_ID(object); \
     GGGGC_ASSERT_ID(value); \
     (object)->member = (value); \
 } while(0)
-#endif
 #define GGGGC_WD(object, member, value) do { \
     GGGGC_ASSERT_ID(object); \
     GGGGC_ASSERT_ID(if_not_a_value_then_ ## value); \
@@ -330,21 +261,18 @@ struct GGGGC_Descriptor *ggggc_allocateDescriptorDA(ggc_size_t size);
 /* allocate a descriptor from a descriptor slot */
 struct GGGGC_Descriptor *ggggc_allocateDescriptorSlot(struct GGGGC_DescriptorSlot *slot);
 
-/* global heuristic for "please stop the world" */
-extern volatile int ggggc_stopTheWorld;
-
 /* usually malloc/NEW and return will yield for you, but if you want to
  * explicitly yield to the garbage collector (e.g. if you're in a tight loop
  * that doesn't allocate in a multithreaded program), call this */
 int ggggc_yield(void);
-#define GGC_YIELD() (ggggc_stopTheWorld ? ggggc_yield() : 0)
+#define GGC_YIELD() ggggc_yield()
 
 /* to handle global variables, GGC_PUSH them then GGC_GLOBALIZE */
 void ggggc_globalize(void);
 #define GGC_GLOBALIZE() ggggc_globalize()
 
 /* each thread has its own pointer stack, including global references */
-extern ggc_thread_local struct GGGGC_PointerStack *ggggc_pointerStack, *ggggc_pointerStackGlobals;
+extern struct GGGGC_PointerStack *ggggc_pointerStack, *ggggc_pointerStackGlobals;
 
 /* macros to push and pop pointers from the pointer stack */
 #define GGGGC_POP() do { \
@@ -390,14 +318,6 @@ static const int ggggc_localPush = 0;
 #endif
 
 #include "push.h"
-
-/* the type passed to threads, which allows both GC and non-GC args */
-GGC_TYPE(ThreadArg)
-    GGC_MPTR(void *, parg);
-    GGC_MDATA(void *, darg);
-GGC_END_TYPE(ThreadArg,
-    GGC_PTR(ThreadArg, parg)
-    )
 
 /* support for ggggcify tool */
 #ifdef GGGGC_GGGGCIFY
