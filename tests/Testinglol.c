@@ -22,8 +22,10 @@ treeNode NewTreeNode(treeNode left, treeNode right, long item)
 } /* NewTreeNode() */
 int main(int argc, char* argv[])
 {
-    treeNode *x;
-    printf("Tried to make a treenode lol");
+    treeNode x;
+    printf("Tried to make a treenode lol\r\n");
+    GGC_WD(x, item, 25);
+    printf("Treenode item %ld\r\n", GGC_RD(x,item));
     return 0;
 
 }

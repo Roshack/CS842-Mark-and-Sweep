@@ -92,6 +92,7 @@ struct GGGGC_Descriptor {
     struct GGGGC_Header header;
     void *user__ptr; /* for the user to use however they please */
     ggc_size_t size; /* size of the described object in words */
+    long unsigned int canary;
     ggc_size_t pointers[1]; /* location of pointers within the object (as a special
                          * case, if pointers[0]|1==0, this means "no pointers") */
 };
