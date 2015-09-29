@@ -24,6 +24,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* mark some things */
+void ggggc_mark();
 
 /* run a collection */
 void ggggc_collect();

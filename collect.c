@@ -28,12 +28,23 @@
 extern "C" {
 #endif
 
+void ggggc_mark()
+{
+    struct GGGGC_PointerStack *stack_iter = ggggc_pointerStack;
+    while(stack_iter) {
+        printf("Found object at: %lx\r\n",  ((long unsigned int **) stack_iter->pointers)[0][0]);
+        stack_iter = stack_iter->next;
+    }
+}
+
 /* run a collection */
 void ggggc_collect()
 {
     /* FILLME */
+    ggggc_mark();
     printf("I should be collecting right now lol\r\n");
 }
+
 
 /* explicitly yield to the collector */
 int ggggc_yield()
