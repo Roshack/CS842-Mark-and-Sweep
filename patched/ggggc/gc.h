@@ -78,7 +78,7 @@ struct GGGGC_Pool {
     ggc_size_t start[1];
 
     /* Our free list! */
-    struct GGGGC_FreeObject *freeList;
+    struct GGGGC_FreeObject *FreeList;
     
 };
 

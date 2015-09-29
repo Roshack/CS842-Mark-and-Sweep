@@ -1,0 +1,2 @@
+Add struct GGGGC_FreeObject to gc.h
+Add a free list to GGGGC_POOL in gc.h

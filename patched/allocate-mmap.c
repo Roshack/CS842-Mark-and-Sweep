@@ -1,5 +1,5 @@
 /*
- * The collector
+ * Allocation functions (mmap)
  *
  * Copyright (c) 2014, 2015 Gregor Richards
  *
@@ -16,33 +16,29 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-
-#include "ggggc/gc.h"
-#include "ggggc-internals.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* run a collection */
-void ggggc_collect()
+static void *allocPool(int mustSucceed)
 {
-    /* FILLME */
-    printf("I should be collecting right now lol\r\n");
-}
+    unsigned char *space, *aspace;
+    struct GGGGC_Pool *ret;
 
-/* explicitly yield to the collector */
-int ggggc_yield()
-{
-    /* FILLME */
-    ggggc_collect();
-    return 0;
-}
+    /* allocate enough space that we can align it later */
+    space = mmap(NULL, GGGGC_POOL_BYTES*2, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+    if (space == NULL) {
+        if (mustSucceed) {
+            perror("mmap");
+            abort();
+        }
+        return NULL;
+    }
 
-#ifdef __cplusplus
+    /* align it */
+    ret = GGGGC_POOL_OF(space + GGGGC_POOL_BYTES - 1);
+    aspace = (unsigned char *) ret;
+
+    /* free unused space */
+    if (aspace > space)
+        munmap(space, aspace - space);
+    munmap(aspace + GGGGC_POOL_BYTES, space + GGGGC_POOL_BYTES - aspace);
+
+    return ret;
 }
-#endif

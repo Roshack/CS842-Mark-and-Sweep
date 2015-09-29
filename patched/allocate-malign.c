@@ -1,5 +1,5 @@
 /*
- * The collector
+ * Allocation functions (posix_malign)
  *
  * Copyright (c) 2014, 2015 Gregor Richards
  *
@@ -16,33 +16,15 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-
-#include "ggggc/gc.h"
-#include "ggggc-internals.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* run a collection */
-void ggggc_collect()
+static void *allocPool(int mustSucceed)
 {
-    /* FILLME */
-    printf("I should be collecting right now lol\r\n");
+    void *ret;
+    if ((errno = posix_memalign(&ret, GGGGC_POOL_BYTES, GGGGC_POOL_BYTES))) {
+        if (mustSucceed) {
+            perror("posix_memalign");
+            abort();
+        }
+        return NULL;
+    }
+    return ret;
 }
-
-/* explicitly yield to the collector */
-int ggggc_yield()
-{
-    /* FILLME */
-    ggggc_collect();
-    return 0;
-}
-
-#ifdef __cplusplus
-}
-#endif

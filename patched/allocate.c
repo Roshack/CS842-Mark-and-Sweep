@@ -105,7 +105,7 @@ static struct GGGGC_Pool *newPool(int mustSucceed)
     ret->next = NULL;
     ret->free = ret->start;
     ret->end = (ggc_size_t *) ((unsigned char *) ret + GGGGC_POOL_BYTES);
-    ret->freeList = NULL;
+    ret->FreeList = NULL;
 
     return ret;
 }
@@ -158,30 +158,11 @@ void ggggc_freeGeneration(struct GGGGC_Pool *pool)
 /* allocate an object */
 void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
 {
-    /* Allocate after yield since maybe then we have more free space? */
     GGC_YIELD();
-    void* userPtr;
-    /* Check if curPool is set... if not we probably have no pool... */
-    if (!ggggc_curPool) {
-        ggggc_curPool = ggggc_poolList = newPool(1);
-    }
-    /* Check if there are any free objects if there are try to find a suitable one */
-    int suitableFree = 0;
-    if (!(ggggc_curPool->freeList)) {
-
-    }
-    /* If there are no suitable free objects allocate at the end of the pool */
-    if (!suitableFree) {
-        size_t size = descriptor->size + sizeof(descriptor);
-        if (ggggc_curPool->free +size <= ggggc_curPool->end) {
-            userPtr = (ggggc_curPool->free)+1;
-            ((struct GGGGC_Descriptor **) ggggc_curPool->free)[0] = descriptor;
-            printf("The size should be: %lu\r\n", ((struct GGGGC_Descriptor **) ggggc_curPool->free)[0]->size );
-            ggggc_curPool->free += size;
-        }
-        
-    }
-    return userPtr;
+    /* Allocate after yield since maybe now we have more free space? */
+    printf("lol trying to allocate");
+    printf("current pool is %l", ((long unsigned int) ggggc_poolList));
+    return GC_MALLOC(descriptor->size * sizeof(void*));
 }
 
 struct GGGGC_Array {

@@ -32,7 +32,7 @@ extern "C" {
 void ggggc_collect()
 {
     /* FILLME */
-    printf("I should be collecting right now lol\r\n");
+    printf("I should be collecting right now lol");
 }
 
 /* explicitly yield to the collector */

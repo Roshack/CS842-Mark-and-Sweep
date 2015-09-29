@@ -33,7 +33,7 @@ btggggc: $(BTGGGGCOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BTGGGGCOBJS) $(GGGGC_LIBS) $(LIBS) -o btggggc
 
 testlol: $(TESTLOL)
-	$(LD) $(CFLAGS) $(LDFLAGS) $(TESTLOL) $(GGGGC_LIBS) $(LIBS) -o testlol
+	$(LD) $(CFLAGS) $(LDFLAGS) $(BTGGGGCOBJS) $(GGGGC_LIBS) $(LIBS) -o testlol
 
 badlll: $(BADLLLOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BADLLLOBJS) $(GGGGC_LIBS) $(LIBS) -o badlll

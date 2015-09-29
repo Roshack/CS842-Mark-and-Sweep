@@ -1,7 +1,7 @@
 /*
- * The collector
+ * Header for internal GGGGC functions
  *
- * Copyright (c) 2014, 2015 Gregor Richards
+ * Copyright (c) 2014 Gregor Richards
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,33 +16,29 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
+#ifndef GGGGC_INTERNALS_H
+#define GGGGC_INTERNALS_H 1
 
 #include "ggggc/gc.h"
-#include "ggggc-internals.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* run a collection */
-void ggggc_collect()
-{
-    /* FILLME */
-    printf("I should be collecting right now lol\r\n");
-}
+void ggggc_collect();
 
-/* explicitly yield to the collector */
-int ggggc_yield()
-{
-    /* FILLME */
-    ggggc_collect();
-    return 0;
-}
+/* the pools are thread-local */
+extern struct GGGGC_Pool *ggggc_poolList;
+
+/* the current allocation pool */
+extern struct GGGGC_Pool *ggggc_curPool;
+
+/* descriptor descriptors */
+extern struct GGGGC_Descriptor *ggggc_descriptorDescriptors[GGGGC_WORDS_PER_POOL/GGGGC_BITS_PER_WORD+sizeof(struct GGGGC_Descriptor)];
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

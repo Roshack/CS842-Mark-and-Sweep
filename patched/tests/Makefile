@@ -11,7 +11,6 @@ LIBS=-lm
 BTOBJS=binary_trees_td.o
 BTGCOBJS=binary_trees_gc_td.o
 BTGGGGCOBJS=binary_trees_ggggc_td.o
-TESTLOL=Testinglol.o
 
 BADLLLOBJS=badlll.o
 
@@ -31,9 +30,6 @@ btgc: $(BTGCOBJS)
 
 btggggc: $(BTGGGGCOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BTGGGGCOBJS) $(GGGGC_LIBS) $(LIBS) -o btggggc
-
-testlol: $(TESTLOL)
-	$(LD) $(CFLAGS) $(LDFLAGS) $(TESTLOL) $(GGGGC_LIBS) $(LIBS) -o testlol
 
 badlll: $(BADLLLOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BADLLLOBJS) $(GGGGC_LIBS) $(LIBS) -o badlll

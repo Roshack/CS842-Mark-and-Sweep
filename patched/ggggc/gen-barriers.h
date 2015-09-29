@@ -1,7 +1,7 @@
 /*
- * The collector
+ * Generic barriers using mutexes and semaphores
  *
- * Copyright (c) 2014, 2015 Gregor Richards
+ * Copyright (c) 2014 Gregor Richards
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,33 +16,18 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
+#ifndef GGGGC_GEN_BARRIERS_H
+#define GGGGC_GEN_BARRIERS_H 1
 
-#include "ggggc/gc.h"
-#include "ggggc-internals.h"
+typedef struct ggggc_barrier_t_ {
+    ggc_mutex_t lock;
+    unsigned long cur, ct;
+    ggc_sem_t waiters;
+} ggc_barrier_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int ggc_barrier_destroy(ggc_barrier_t *barrier);
+int ggc_barrier_init(ggc_barrier_t *barrier, unsigned long ct);
+int ggc_barrier_wait(ggc_barrier_t *barrier);
+int ggc_barrier_wait_raw(ggc_barrier_t *barrier);
 
-/* run a collection */
-void ggggc_collect()
-{
-    /* FILLME */
-    printf("I should be collecting right now lol\r\n");
-}
-
-/* explicitly yield to the collector */
-int ggggc_yield()
-{
-    /* FILLME */
-    ggggc_collect();
-    return 0;
-}
-
-#ifdef __cplusplus
-}
 #endif
