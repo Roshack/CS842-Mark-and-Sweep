@@ -94,7 +94,7 @@ struct GGGGC_Descriptor {
     ggc_size_t size; /* size of the described object in words */
     long unsigned int canary;
     ggc_size_t pointers[1]; /* location of pointers within the object (as a special
-                         * case, if pointers[0]|1==0, this means "no pointers") */
+                         * case, if pointers[0]&1==0, this means "no pointers") */
 };
 #define GGGGC_DESCRIPTOR_DESCRIPTION 0x3 /* first two words are pointers */
 #define GGGGC_DESCRIPTOR_WORDS_REQ(sz) (((sz) + GGGGC_BITS_PER_WORD - 1) / GGGGC_BITS_PER_WORD)

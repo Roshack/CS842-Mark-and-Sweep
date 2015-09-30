@@ -21,7 +21,7 @@ GCBENCHOBJS=gc_bench/GCBench.o
 
 GGGGCBENCHOBJS=gc_bench/GCBench.ggggc.o
 
-all: bt btgc btggggc badlll gcbench ggggcbench
+all: bt btgc btggggc badlll gcbench ggggcbench testlol
 
 bt: $(BTOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BTOBJS) $(LIBS) -o bt
@@ -60,3 +60,4 @@ clean:
 	rm -f $(REMEMBEROBJS) remember
 	rm -f $(GCBENCHOBJS) gcbench
 	rm -f $(GGGGCBENCHOBJS) ggggcbench
+

@@ -24,8 +24,30 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* mark some things */
+
+/* sweeeeeeeeep */
+void ggggc_sweep();
+
+/* Pass a pointer to an object to check if it's marked
+   returns 1 if marked 0 if not */
+long unsigned int ggggc_isMarked(void * x);
+
+/* Given a pointer to a header returns that headers 
+   descriptor__ptr after masking the possibly set mark bit */
+void * ggggc_cleanMark(void *x);
+
+/* Mark an individual object passed as a void pointer to its header. 
+   Used for cleanliness */
+void ggggc_markObject(void *x);
+
+/* Unmark an individual object passed as a void pointer to its header */
+void ggggc_unmarkObject(void *x);
+
+/* Start the mark phase of mark and sweep */
 void ggggc_mark();
+
+/* Do actual marking recursion for non stack objects */
+void ggggc_markHelper(void * x);
 
 /* run a collection */
 void ggggc_collect();

@@ -161,6 +161,8 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
     /* Allocate after yield since maybe then we have more free space? */
     GGC_YIELD();
     void* userPtr;
+    struct GGGGC_Header header;
+    header.descriptor__ptr = descriptor;
     /* Check if curPool is set... if not we probably have no pool... */
     if (!ggggc_curPool) {
         ggggc_curPool = ggggc_poolList = newPool(1);
@@ -172,7 +174,7 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
     }
     /* If there are no suitable free objects allocate at the end of the pool */
     if (!suitableFree) {
-        size_t size = descriptor->size + sizeof(descriptor);
+        ggc_size_t size = descriptor->size + sizeof(header);
         if (ggggc_curPool->free +size > ggggc_curPool->end) {
             /* If the object too big for our current pool get a new one */
             /* This should be changed to iterating through the pools later
@@ -181,20 +183,10 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
             temp->next = ggggc_curPool;
             ggggc_curPool = ggggc_poolList = temp;
         }
-        userPtr = (ggggc_curPool->free)+1;
-        printf("\r\n");
-        printf("Curpool free is: %lx\r\n", (long unsigned int) ggggc_curPool->free);
-        printf("Userptr is : %lx\r\n", (long unsigned int) userPtr);
-        ((struct GGGGC_Descriptor **) ggggc_curPool->free)[0] = descriptor;
-        /*
-        printf("The size should be: %lu\r\n", ((struct GGGGC_Descriptor **) ggggc_curPool->free)[0]->size );
-        printf("Checking canary w/out user ptr: %lx\r\n", ((struct GGGGC_Descriptor **) ggggc_curPool->free)[0]->canary );
-        printf("Checking canary w/out user ptr: %lx\r\n", descriptor->canary);
-        printf("Checking canary: %lx\r\n", ((struct GGGGC_Descriptor **) userPtr)[-1]->canary);
-        printf("Allocating object at: %lx\r\n", (long unsigned int) userPtr);
-        */
+        userPtr = (ggggc_curPool->free)+sizeof(header);
+        ((struct GGGGC_Header*) userPtr-sizeof(header))[0] = header;
         ggggc_curPool->free += size;
-        
+        printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);      
     }
     return userPtr;
 }
