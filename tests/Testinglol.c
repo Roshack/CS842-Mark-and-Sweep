@@ -48,10 +48,9 @@ treeNode TopDownTree(long item, unsigned depth)
 
 int main(int argc, char* argv[])
 {
-    treeNode x;
-    treeNode y;
-    treeNode z;
-    x = y = z = NULL;
+    treeNode x = NULL;
+    treeNode y = NULL;
+    treeNode z = NULL;
     GGC_PUSH_3(x, y, z);
     //printf("x.left is at %lx\r\n", (long unsigned int) GGC_RP(x,left));
     x = NewTreeNode(y,z,5);

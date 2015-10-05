@@ -56,7 +56,7 @@ void * ggggc_cleanMark(void *x)
 
 void ggggc_mark()
 {
-    struct GGGGC_PointerStack *stack_iter;;
+    struct GGGGC_PointerStack *stack_iter;
     int x = 0;
     while (x < 2) {
         // If it's our first time through loop go through pointerstack if not pointerstack globals
@@ -67,7 +67,7 @@ void ggggc_mark()
                 /* Here header is the pointer to the header of the object we're currently looking at
                    the reference in the stack for (given by stack_iter), so we can mark it by
                    updating header->descriptor_ptr */
-                struct GGGGC_Header *header= (**ptrptr) - sizeof(struct GGGGC_Header);
+                struct GGGGC_Header *header= **ptrptr;
                 /* Check if this object is already marked, the first object off the stack never will be,
                    but after recursing down the first one future ones could be */
                 if (!ggggc_isMarked((void*) header)) {
@@ -82,28 +82,35 @@ void ggggc_mark()
 
 void ggggc_markHelper(void * x)
 {
-    // Get the descriptor for this object by dereferencing the cleaned descriptor ptr
-    struct GGGGC_Descriptor descriptor = *(struct GGGGC_Descriptor *) ggggc_cleanMark(x);
+    // If this guy is marked already run away before you segfault doing other stuff to it.
+    if (ggggc_isMarked(x)) {
+        return;
+    }
+    // Get the descriptor for this object by dereferencing the cleaned descriptor ptr   
     printf("Hey I want to mark you dude %lx\r\n", (long unsigned int) x);
+    printf("What is your descriptor... %lx\r\n", (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr);
+    struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
     ggggc_markObject(x);
-    if (!(descriptor.pointers[0]&1==0)) {
-        // If we aren't in the special case of no pointers time to iterate...
-        // so the first word is always our header ptr so I THINK we ignore that..
-        long unsigned int bitIter = 2;
+    if (descriptor->pointers[0]&1) {
+        long unsigned int bitIter = 1;
         int z = 0;
         while (z < 63) {
-            if (descriptor.pointers[0] & bitIter) {
-                /* so we found a pointer in our object, we're starting looking at the 2nd word
-                   and continuuing from there, so the word we're at in our object is represented
-                   by z+2 */
-                void * newPtr = x+((z+2)*sizeof(void*));
+            if (descriptor->pointers[0] & bitIter) {
+                /* so we found a pointer in our object so check it out */
+                void * newPtr = x+((z)*sizeof(void*));
                 printf("x is %lx\r\n", (long unsigned int) x);
                 printf("Newptr is %lx\r\n", (long unsigned int) newPtr);
                 struct GGGGC_Header **newHeader = (struct GGGGC_Header **) newPtr;
                 if (*newHeader) {
                     printf("%lx is the address of the value %lx\r\n", (long unsigned int) newHeader, (long unsigned int) *newHeader);
-                    struct GGGGC_Header * next = *newHeader - sizeof(struct GGGGC_Header);
+                    struct GGGGC_Header * next = *newHeader;
+                    if (!z) {
+                        // If z is 0 this is our descriptor ptr and we need to clean it first.
+                        next = (struct GGGGC_Header *) descriptor;
+                        printf("Next is now: %lx\r\n", (long unsigned int) next);
+                    }
                     printf("newHeader is %lx\r\n", (long unsigned int) next);
+
                     ggggc_markHelper((void *) next);
                 }
             }
@@ -139,6 +146,7 @@ void ggggc_collect()
 {
     /* FILLME */
     ggggc_mark();
+    ggggc_sweep();
 }
 
 
@@ -146,8 +154,7 @@ void ggggc_collect()
 int ggggc_yield()
 {
     /* FILLME */
-    ggggc_collect();
-    ggggc_sweep();
+    //ggggc_collect();
     return 0;
 }
 

@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
     unsigned   N, depth, minDepth, maxDepth, stretchDepth;
     treeNode   stretchTree, longLivedTree, tempTree;
 
-    N = atol(argv[1]);
+    N = atol(argv[1]);;
 
     minDepth = 4;
 
@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
     tempTree = stretchTree = longLivedTree = NULL;
     GGC_PUSH_3(tempTree, stretchTree, longLivedTree);
 
-    stretchTree = TopDownTree(0, stretchDepth);
+    stretchTree = TopDownTree(0, stretchDepth);;
     printf
     (
         "stretch tree of depth %u\t check: %li\n",

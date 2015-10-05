@@ -183,10 +183,11 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
             temp->next = ggggc_curPool;
             ggggc_curPool = ggggc_poolList = temp;
         }
-        userPtr = (ggggc_curPool->free)+sizeof(header);
-        ((struct GGGGC_Header*) userPtr-sizeof(header))[0] = header;
+        userPtr = (ggggc_curPool->free);
+        ((struct GGGGC_Header*) userPtr)[0] = header;
         ggggc_curPool->free += size;
-        printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);      
+        printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);    
+        printf("And the descriptor ptr for this guy is: %lx\r\n", (long unsigned int) ((struct GGGGC_Header *) userPtr)->descriptor__ptr);  
     }
     return userPtr;
 }
