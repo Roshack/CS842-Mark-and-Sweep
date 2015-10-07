@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+int count = 0;
+
 long unsigned int ggggc_isMarked(void * x)
 {  
     return (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr & 1l;
@@ -87,8 +89,8 @@ void ggggc_markHelper(void * x)
         return;
     }
     // Get the descriptor for this object by dereferencing the cleaned descriptor ptr   
-    printf("Hey I want to mark you dude %lx\r\n", (long unsigned int) x);
-    printf("What is your descriptor... %lx\r\n", (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr);
+    //printf("Hey I want to mark you dude %lx\r\n", (long unsigned int) x);
+    //printf("What is your descriptor... %lx\r\n", (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr);
     struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
     ggggc_markObject(x);
     if (descriptor->pointers[0]&1) {
@@ -98,18 +100,18 @@ void ggggc_markHelper(void * x)
             if (descriptor->pointers[0] & bitIter) {
                 /* so we found a pointer in our object so check it out */
                 void * newPtr = x+((z)*sizeof(void*));
-                printf("x is %lx\r\n", (long unsigned int) x);
-                printf("Newptr is %lx\r\n", (long unsigned int) newPtr);
+                //printf("x is %lx\r\n", (long unsigned int) x);
+                //printf("Newptr is %lx\r\n", (long unsigned int) newPtr);
                 struct GGGGC_Header **newHeader = (struct GGGGC_Header **) newPtr;
                 if (*newHeader) {
-                    printf("%lx is the address of the value %lx\r\n", (long unsigned int) newHeader, (long unsigned int) *newHeader);
+                    //printf("%lx is the address of the value %lx\r\n", (long unsigned int) newHeader, (long unsigned int) *newHeader);
                     struct GGGGC_Header * next = *newHeader;
                     if (!z) {
                         // If z is 0 this is our descriptor ptr and we need to clean it first.
                         next = (struct GGGGC_Header *) descriptor;
-                        printf("Next is now: %lx\r\n", (long unsigned int) next);
+                        //printf("Next is now: %lx\r\n", (long unsigned int) next);
                     }
-                    printf("newHeader is %lx\r\n", (long unsigned int) next);
+                    //printf("newHeader is %lx\r\n", (long unsigned int) next);
 
                     ggggc_markHelper((void *) next);
                 }
@@ -154,7 +156,10 @@ void ggggc_collect()
 int ggggc_yield()
 {
     /* FILLME */
-    //ggggc_collect();
+    count++;
+    if (count > 2) {
+        ggggc_collect();
+    }
     return 0;
 }
 

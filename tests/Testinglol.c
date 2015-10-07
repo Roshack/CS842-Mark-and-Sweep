@@ -56,6 +56,9 @@ int main(int argc, char* argv[])
     x = NewTreeNode(y,z,5);
     y = NewTreeNode(x,z,12);
     GGC_WP(x,left,y);
+    GCC_WP(y,left,z);
+    x = NewTreeNode(y,y,5);
+    GCC_WP(y,left,x);
     ggggc_yield();
     printf("x.left is at %lx\r\n", (long unsigned int) GGC_RP(x,left));
     printf("y.left is at %lx\r\n", (long unsigned int) GGC_RP(y,left));

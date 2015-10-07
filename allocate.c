@@ -77,6 +77,7 @@ extern "C" {
 
 #endif
 
+
 /* pools which are freely available */
 static struct GGGGC_Pool *freePoolsHead, *freePoolsTail;
 
@@ -159,7 +160,7 @@ void ggggc_freeGeneration(struct GGGGC_Pool *pool)
 void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
 {
     /* Allocate after yield since maybe then we have more free space? */
-    GGC_YIELD();
+    //GGC_YIELD();
     void* userPtr;
     struct GGGGC_Header header;
     header.descriptor__ptr = descriptor;
@@ -180,8 +181,8 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
             /* This should be changed to iterating through the pools later
                to check if there is a pool with enough space */
             struct GGGGC_Pool *temp = newPool(1);
-            temp->next = ggggc_curPool;
-            ggggc_curPool = ggggc_poolList = temp;
+            ggggc_curPool->next = temp;
+            ggggc_curPool = temp;
         }
         userPtr = (ggggc_curPool->free);
         ((struct GGGGC_Header*) userPtr)[0] = header;
@@ -226,12 +227,12 @@ struct GGGGC_Descriptor *ggggc_allocateDescriptorDescriptor(ggc_size_t size)
     ddSize = GGGGC_WORD_SIZEOF(struct GGGGC_Descriptor) + GGGGC_DESCRIPTOR_WORDS_REQ(size);
 
     /* check if we already have a descriptor */
-    if (ggggc_descriptorDescriptors[ddSize])
-        return ggggc_descriptorDescriptors[ddSize];
+    if (ggggc_descriptorDescriptors[size])
+        return ggggc_descriptorDescriptors[size];
 
     /* otherwise, need to allocate one. First lock the space */
-    if (ggggc_descriptorDescriptors[ddSize]) {
-        return ggggc_descriptorDescriptors[ddSize];
+    if (ggggc_descriptorDescriptors[size]) {
+        return ggggc_descriptorDescriptors[size];
     }
 
     /* now make a temporary descriptor to describe the descriptor descriptor */
@@ -247,8 +248,8 @@ struct GGGGC_Descriptor *ggggc_allocateDescriptorDescriptor(ggc_size_t size)
     ret->pointers[0] = GGGGC_DESCRIPTOR_DESCRIPTION;
 
     /* put it in the list */
-    ggggc_descriptorDescriptors[ddSize] = ret;
-    GGC_PUSH_1(ggggc_descriptorDescriptors[ddSize]);
+    ggggc_descriptorDescriptors[size] = ret;
+    GGC_PUSH_1(ggggc_descriptorDescriptors[size]);
     GGC_GLOBALIZE();
 
     /* and give it a proper descriptor */
