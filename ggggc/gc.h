@@ -54,12 +54,17 @@ typedef size_t ggc_size_t;
 #define GGGGC_POOL_OF(ptr) ((struct GGGGC_Pool *) ((ggc_size_t) (ptr) & GGGGC_POOL_OUTER_MASK))
 #define GGGGC_BITS_PER_WORD (8*sizeof(ggc_size_t))
 #define GGGGC_WORDS_PER_POOL (GGGGC_POOL_BYTES/sizeof(ggc_size_t))
+#define GGGGC_FREE_MAP_SIZE (GGGGC_WORDS_PER_POOL/256)
 
 /* an empty defined for all the various conditions in which empty defines are necessary */
 #define GGGGC_EMPTY
 
-/* Free object struct for free lists, forms a list... */
+/* Free object struct for free lists, forms a list, I'm assuming that I'm enforcing
+   that every object the mutator allocates is AT LEAST 1 void * large, so that I have room
+    for the descriptor ptr (where the header was) and room for the next pointer where the
+    object was...*/
 struct GGGGC_FreeObject {
+    struct GGGGC_Descriptor *descriptor__ptr;
     struct GGGGC_FreeObject *next;
 };
 
@@ -67,6 +72,9 @@ struct GGGGC_FreeObject {
 struct GGGGC_Pool {
     /* the next pool in this generation */
     struct GGGGC_Pool *next;
+
+    /* Our free list! */
+    struct GGGGC_FreeObject *freeList;
 
     /* the current free space and end of the pool */
     ggc_size_t *free, *end;
@@ -76,9 +84,6 @@ struct GGGGC_Pool {
 
     /* and the actual content */
     ggc_size_t start[1];
-
-    /* Our free list! */
-    struct GGGGC_FreeObject *freeList;
     
 };
 
@@ -92,7 +97,6 @@ struct GGGGC_Descriptor {
     struct GGGGC_Header header;
     void *user__ptr; /* for the user to use however they please */
     ggc_size_t size; /* size of the described object in words */
-    long unsigned int canary;
     ggc_size_t pointers[1]; /* location of pointers within the object (as a special
                          * case, if pointers[0]&1==0, this means "no pointers") */
 };

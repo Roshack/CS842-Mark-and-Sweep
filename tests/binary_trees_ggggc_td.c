@@ -58,7 +58,7 @@ treeNode TopDownTree(long item, unsigned depth)
 
         ret = NewTreeNode(NULL, NULL, item);
         l = TopDownTree(2 * item - 1, depth - 1);
-        r = TopDownTree(2 * item, depth - 1);
+        r = TopDownTree(2 * item, depth - 1);;
         GGC_WP(ret, left, l);
         GGC_WP(ret, right, r);
 
@@ -80,20 +80,20 @@ int main(int argc, char* argv[])
     if ((minDepth + 2) > N)
         maxDepth = minDepth + 2;
     else
-        maxDepth = N;
+        maxDepth = N;;
 
     stretchDepth = maxDepth + 1;
 
     tempTree = stretchTree = longLivedTree = NULL;
     GGC_PUSH_3(tempTree, stretchTree, longLivedTree);
 
-    stretchTree = TopDownTree(0, stretchDepth);;
+    stretchTree = TopDownTree(0, stretchDepth);
     printf
     (
         "stretch tree of depth %u\t check: %li\n",
         stretchDepth,
         ItemCheck(stretchTree)
-    );
+    );;
 
     longLivedTree = TopDownTree(0, maxDepth);
 
@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
             iterations * 2,
             depth,
             check
-        );
+        );;
     } /* for(depth = minDepth...) */
 
     printf

@@ -156,40 +156,79 @@ void ggggc_freeGeneration(struct GGGGC_Pool *pool)
     freePoolsTail = pool;
 }
 
+/* Function when allocating an object to zero out all
+   it's internal space past the header */
+void ggggc_zero_object(struct GGGGC_Header *hdr)
+{
+    ggc_size_t size = hdr->descriptor__ptr->size - GGGGC_WORD_SIZEOF(*hdr);
+    ggc_size_t i = 0;
+    void * iter = ((void *) hdr) + sizeof(*hdr);
+    while (i < size) {
+        ((long unsigned int *) iter)[0] = 0;
+        iter = iter + sizeof(void*);
+        i++;
+    }
+    return;
+}
+
 /* allocate an object */
 void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
 {
-    /* Allocate after yield since maybe then we have more free space? */
-    //GGC_YIELD();
+    /* Yield at allocation, if it decides to collect we have more space! */
+    ggggc_yield();
     void* userPtr;
     struct GGGGC_Header header;
+    extern ggc_size_t ggggc_poolCount;
+    extern int ggggc_forceCollect;
     header.descriptor__ptr = descriptor;
-    /* Check if curPool is set... if not we probably have no pool... */
+    /* Check if curPool is set... if not we probably have no pools yet...
+       and if we do have pools already we're in trouble cuz we lost our pointers
+       to them so... EEP. */
     if (!ggggc_curPool) {
+        ggggc_poolCount = 1;
         ggggc_curPool = ggggc_poolList = newPool(1);
     }
     /* Check if there are any free objects if there are try to find a suitable one */
     int suitableFree = 0;
-    if (!(ggggc_curPool->freeList)) {
-
+    if (ggggc_curPool->freeList) {
+        struct GGGGC_FreeObject *freeIter = ggggc_curPool->freeList;
+        struct GGGGC_FreeObject *prevIter = NULL;
+        while (freeIter && !suitableFree) {
+            if (freeIter->descriptor__ptr->size == descriptor->size) {
+                suitableFree = 1;
+                userPtr = freeIter;
+                ((struct GGGGC_Header *) userPtr)[0] = header;
+                if (prevIter) {
+                    prevIter->next = freeIter->next;
+                } else {
+                     ggggc_curPool->freeList = NULL;
+                }
+            }
+            prevIter = freeIter;
+            freeIter = freeIter->next;
+        }
     }
     /* If there are no suitable free objects allocate at the end of the pool */
     if (!suitableFree) {
-        ggc_size_t size = descriptor->size + sizeof(header);
-        if (ggggc_curPool->free +size > ggggc_curPool->end) {
+        ggc_size_t size = descriptor->size;
+        if (ggggc_curPool->free + size > ggggc_curPool->end) {
             /* If the object too big for our current pool get a new one */
             /* This should be changed to iterating through the pools later
                to check if there is a pool with enough space */
             struct GGGGC_Pool *temp = newPool(1);
+            // Force a collection when we need to allocate a new pool.
+            ggggc_forceCollect = 1;
+            printf("set forceCollect to 1\r\n");
+            ggggc_poolCount++;
             ggggc_curPool->next = temp;
             ggggc_curPool = temp;
         }
         userPtr = (ggggc_curPool->free);
         ((struct GGGGC_Header*) userPtr)[0] = header;
         ggggc_curPool->free += size;
-        printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);    
-        printf("And the descriptor ptr for this guy is: %lx\r\n", (long unsigned int) ((struct GGGGC_Header *) userPtr)->descriptor__ptr);  
     }
+    //printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);
+    ggggc_zero_object((struct GGGGC_Header*) userPtr);
     return userPtr;
 }
 
@@ -254,7 +293,6 @@ struct GGGGC_Descriptor *ggggc_allocateDescriptorDescriptor(ggc_size_t size)
 
     /* and give it a proper descriptor */
     ret->header.descriptor__ptr = ggggc_allocateDescriptorDescriptor(ddSize);
-    ret->canary = 0xDEADBEEF;
     return ret;
 }
 
@@ -287,7 +325,6 @@ struct GGGGC_Descriptor *ggggc_allocateDescriptorL(ggc_size_t size, const ggc_si
     /* use that to allocate the descriptor */
     ret = (struct GGGGC_Descriptor *) ggggc_malloc(dd);
     ret->size = size;
-    ret->canary = 0xDEADBEEF;
     /* and set it up */
     if (pointers) {
         memcpy(ret->pointers, pointers, sizeof(ggc_size_t) * dPWords);

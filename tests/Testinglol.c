@@ -13,6 +13,7 @@ GGC_END_TYPE(treeNode,
     GGC_PTR(treeNode, right)
     )
 
+
 treeNode NewTreeNode(treeNode left, treeNode right, long item)
 {
     treeNode    newT = NULL;
@@ -46,23 +47,42 @@ treeNode TopDownTree(long item, unsigned depth)
         return NewTreeNode(NULL, NULL, item);
 } /* BottomUpTree() */
 
+void DestroyMyInsides()
+{
+    treeNode x = NewTreeNode(NULL,NULL,2);
+    GGC_PUSH_1(x);
+    printf("Hey I allocated x at %lx\r\n", (long unsigned int) ((void *) x));
+    return;
+
+}
+
 int main(int argc, char* argv[])
 {
+    DestroyMyInsides();
     treeNode x = NULL;
     treeNode y = NULL;
     treeNode z = NULL;
     GGC_PUSH_3(x, y, z);
     //printf("x.left is at %lx\r\n", (long unsigned int) GGC_RP(x,left));
+    printf("Allocating x\r\n");
     x = NewTreeNode(y,z,5);
+    DestroyMyInsides();
+    printf("Allocating y\r\n");
     y = NewTreeNode(x,z,12);
     GGC_WP(x,left,y);
-    GCC_WP(y,left,z);
+    GGC_WP(y,left,z);
+    printf("Allocating x\r\n");
     x = NewTreeNode(y,y,5);
-    GCC_WP(y,left,x);
+    GGC_WP(y,right,x);
+    GGC_WP(y,left,x);
+    y = NULL;
     ggggc_yield();
     printf("x.left is at %lx\r\n", (long unsigned int) GGC_RP(x,left));
-    printf("y.left is at %lx\r\n", (long unsigned int) GGC_RP(y,left));
-    printf("Treenode item %ld\r\n", GGC_RD(x,item));
-    return 0;;
+    //printf("y.left is at %lx\r\n", (long unsigned int) GGC_RP(y,left));
+    //printf("y item is %ld should be 12\r\n", GGC_RD(y,item));
+    printf("Treenode item %ld should be 5\r\n", GGC_RD(x,item));
+    DestroyMyInsides();
+
+    return 0;
 
 }

@@ -51,7 +51,7 @@ void testLLL(LLL lll)
 {
     unsigned char *counted;
 
-    GGC_PUSH_1(lll);
+    GGC_PUSH_1(lll);;
 
     counted = (unsigned char *) calloc(MAX, sizeof(unsigned char));
     while (lll) {
