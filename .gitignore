@@ -6,8 +6,9 @@ bench
 testbl
 testbt
 test
-reader.py
+*.py
 stderr.txt
+stdout.txt
 tests/ggggcbench
 patched/*
 tests/badlll

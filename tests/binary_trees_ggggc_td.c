@@ -29,7 +29,6 @@ treeNode NewTreeNode(treeNode left, treeNode right, long item)
     GGC_PUSH_3(left, right, newT);
 
     newT = GGC_NEW(treeNode);
-
     GGC_WP(newT, left, left);
     GGC_WP(newT, right, right);
     GGC_WD(newT, item, item);
@@ -41,7 +40,7 @@ treeNode NewTreeNode(treeNode left, treeNode right, long item)
 long ItemCheck(treeNode tree)
 {
     GGC_PUSH_1(tree);
-    //printf("tree object at %lx has left %lx and right %lx\r\n", (long unsigned int) (tree), (long unsigned int) (tree)->left__ptr,(long unsigned int) (tree)->right__ptr);
+    //fprintf(stderr,"T %lx L %lx R %lx\r\n", (long unsigned int) (tree), (long unsigned int) (tree)->left__ptr,(long unsigned int) (tree)->right__ptr);
     if (GGC_RP(tree, left) == NULL) {
         return GGC_RD(tree, item);
     } else {
@@ -105,12 +104,10 @@ int main(int argc, char* argv[])
         iterations = pow(2, maxDepth - depth + minDepth);
 
         check = 0;
-
         for (i = 1; i <= iterations; i++)
         {
             tempTree = TopDownTree(i, depth);
             check += ItemCheck(tempTree);
-
             tempTree = TopDownTree(-i, depth);
             check += ItemCheck(tempTree);
         } /* for(i = 1...) */

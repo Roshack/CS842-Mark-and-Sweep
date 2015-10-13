@@ -144,7 +144,7 @@ void ggggc_markHelper()
         if (descriptor->pointers[0]&1) {
             long unsigned int bitIter = 1;
             int z = 0;
-            while (z < 63) {
+            while (z < descriptor->size) {
                 if (descriptor->pointers[0] & bitIter) {
                     /* so we found a pointer in our object so check it out */
                     void * newPtr = (void *) (((ggc_size_t *) x)+z);
@@ -178,6 +178,7 @@ void ggggc_sweep()
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
         poolIter->freeList = NULL;
+        struct GGGGC_FreeObject * oldFree = NULL;
         while (iter < poolIter->free && iter) {
             /* if object is not marked add to free list... */
             struct GGGGC_Descriptor *desc = ggggc_cleanMark((void *) iter);
@@ -190,9 +191,20 @@ void ggggc_sweep()
                 // Right now putting each object we find at the START Of the freelist... maybe not
                 // the best but oh well. Easily solved by adding a variable to keep track of
                 // where we are in the free list.
+                // Turns out after some testing doing it this way is WAYYYYYYYYYYY faster for
+                // the bench test program so.... yeah gonna keep doing it this way...
                 struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
                 newFree->next = poolIter->freeList;
                 poolIter->freeList = newFree;
+                /*
+                if (oldFree) {
+                    oldFree->next = newFree;
+                    oldFree = newFree;
+                } else {
+                    newFree->next = NULL;
+                    poolIter->freeList = newFree;
+                    oldFree = newFree;
+                }*/
                 //printf("Free object found at %lx\r\n", (long unsigned int) newFree);
             }
             iter = iter + size;
@@ -204,14 +216,14 @@ void ggggc_sweep()
 /* run a collection */
 void ggggc_collect()
 {
-    printf("running mark\r\n");
+    //printf("running mark\r\n");
     StackLL_Init();
     ggggc_mark();
     StackLL_Clean();
-    printf("running sweep\r\n");
+    //printf("running sweep\r\n");
     ggggc_sweep();
     // If we've ran a collection we need to reset the curpool.
-    printf("completed sweep\r\n");
+    //printf("completed sweep\r\n");
     ggggc_forceCollect = 0;
     ggggc_curPool = ggggc_poolList;
 }
