@@ -162,10 +162,12 @@ void ggggc_zero_object(struct GGGGC_Header *hdr)
 {
     ggc_size_t size = hdr->descriptor__ptr->size - GGGGC_WORD_SIZEOF(*hdr);
     ggc_size_t i = 0;
-    void * iter = ((void *) hdr) + sizeof(*hdr);
+    ggc_size_t * iter = ((ggc_size_t *) hdr) + 1;
+    //printf("Zeroing object at %lx starting at %lx\r\n", (long unsigned int) hdr, (long unsigned int) iter);
     while (i < size) {
-        ((long unsigned int *) iter)[0] = 0;
-        iter = iter + sizeof(void*);
+        iter[0] = 0;
+        //printf("For object %lx wiping %lx\r\n", (long unsigned int) hdr, (long unsigned int) iter);
+        iter = iter + 1;
         i++;
     }
     return;
@@ -186,10 +188,12 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
        to them so... EEP. */
     if (!ggggc_curPool) {
         ggggc_poolCount = 1;
+        ggggc_forceCollect = 0;
         ggggc_curPool = ggggc_poolList = newPool(1);
     }
     /* Check if there are any free objects if there are try to find a suitable one */
     int suitableFree = 0;
+    
     if (ggggc_curPool->freeList) {
         struct GGGGC_FreeObject *freeIter = ggggc_curPool->freeList;
         struct GGGGC_FreeObject *prevIter = NULL;
@@ -197,11 +201,11 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
             if (freeIter->descriptor__ptr->size == descriptor->size) {
                 suitableFree = 1;
                 userPtr = freeIter;
-                ((struct GGGGC_Header *) userPtr)[0] = header;
+                //fprintf(stderr,"allocating to freeobject %lx\r\n", (long unsigned int) freeIter);
                 if (prevIter) {
                     prevIter->next = freeIter->next;
                 } else {
-                     ggggc_curPool->freeList = NULL;
+                    ggggc_curPool->freeList = freeIter->next;
                 }
             }
             prevIter = freeIter;
@@ -211,24 +215,29 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
     /* If there are no suitable free objects allocate at the end of the pool */
     if (!suitableFree) {
         ggc_size_t size = descriptor->size;
-        if (ggggc_curPool->free + size > ggggc_curPool->end) {
+        if (ggggc_curPool->free + size >= ggggc_curPool->end) {
             /* If the object too big for our current pool get a new one */
             /* This should be changed to iterating through the pools later
                to check if there is a pool with enough space */
+            if (ggggc_curPool->next) {
+                // if we're not on last pool let's go to the next pool before maknig new one
+                ggggc_curPool = ggggc_curPool->next;
+                //printf("recurisvely calling malloc...\r\n");
+                return ggggc_malloc(descriptor);
+            }
             struct GGGGC_Pool *temp = newPool(1);
             // Force a collection when we need to allocate a new pool.
             ggggc_forceCollect = 1;
-            printf("set forceCollect to 1\r\n");
             ggggc_poolCount++;
             ggggc_curPool->next = temp;
             ggggc_curPool = temp;
         }
         userPtr = (ggggc_curPool->free);
-        ((struct GGGGC_Header*) userPtr)[0] = header;
         ggggc_curPool->free += size;
     }
     //printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);
-    ggggc_zero_object((struct GGGGC_Header*) userPtr);
+    ((struct GGGGC_Header *) userPtr)[0] = header;
+    //ggggc_zero_object((struct GGGGC_Header*) userPtr);
     return userPtr;
 }
 

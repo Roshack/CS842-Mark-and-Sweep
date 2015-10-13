@@ -47,7 +47,7 @@ void ggggc_unmarkObject(void *x);
 void ggggc_mark();
 
 /* Do actual marking recursion for non stack objects */
-void ggggc_markHelper(void * x);
+void ggggc_markHelper();
 
 /* run a collection */
 void ggggc_collect();

@@ -15,7 +15,7 @@ GGC_END_TYPE(LLL,
 LLL buildLLL(int sz)
 {
     int i;
-    LLL ll0, lll, llc;
+    LLL ll0 = NULL, lll = NULL, llc = NULL;
 
     GGC_PUSH_3(ll0, lll, llc);
 
@@ -51,7 +51,7 @@ void testLLL(LLL lll)
 {
     unsigned char *counted;
 
-    GGC_PUSH_1(lll);
+    GGC_PUSH_1(lll);;
 
     counted = (unsigned char *) calloc(MAX, sizeof(unsigned char));
     while (lll) {

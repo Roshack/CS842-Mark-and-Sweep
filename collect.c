@@ -28,6 +28,48 @@
 extern "C" {
 #endif
 
+struct StackLL 
+{
+    void *data;
+    struct StackLL *next;
+};
+
+struct StackLL * markStack;
+
+void StackLL_Init()
+{
+    markStack = (struct StackLL *)malloc(sizeof(struct StackLL));
+    markStack->data = NULL;
+    markStack->next = NULL;
+}
+
+void StackLL_Push(void *x)
+{
+    struct StackLL *new = (struct StackLL *)malloc(sizeof(struct StackLL));
+    new->data = x;
+    new->next = markStack;
+    markStack = new;
+}
+
+void * StackLL_Pop()
+{
+    void * x = markStack->data;
+    struct StackLL *old = markStack;
+    if (x) {
+        markStack = markStack->next;
+        free(old);
+    }
+    return x;
+}
+
+void StackLL_Clean()
+{
+    while(markStack->next) {
+        StackLL_Pop();
+    }
+    free(markStack);
+}
+
 extern int ggggc_forceCollect;
 
 long unsigned int ggggc_isMarked(void * x)
@@ -73,8 +115,9 @@ void ggggc_mark()
                 /* Check if this object is already marked, the first object off the stack never will be,
                    but after recursing down the first one future ones could be */
                 if (!ggggc_isMarked((void*) header)) {
-                    printf("First found root %lx\r\n", (long unsigned int) header);
-                    ggggc_markHelper((void *) header);
+                    //fprintf(stderr,"First found root %lx\r\n", (long unsigned int) header);
+                    StackLL_Push((void *) header);
+                    ggggc_markHelper();
                 }
             }
             stack_iter = stack_iter->next;
@@ -83,36 +126,47 @@ void ggggc_mark()
     }
 }
 
-void ggggc_markHelper(void * x)
+void ggggc_markHelper()
 {
-    // If this guy is marked already run away before you segfault doing other stuff to it.
-    if (ggggc_isMarked(x)) {
-        return;
-    }
-    // Get the descriptor for this object by dereferencing the cleaned descriptor ptr   
-    struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
-    ggggc_markObject(x);
-    if (descriptor->pointers[0]&1) {
-        long unsigned int bitIter = 1;
-        int z = 0;
-        while (z < 63) {
-            if (descriptor->pointers[0] & bitIter) {
-                /* so we found a pointer in our object so check it out */
-                void * newPtr = x+((z)*sizeof(void*));
-                struct GGGGC_Header **newHeader = (struct GGGGC_Header **) newPtr;
-                if (*newHeader) {
-                    struct GGGGC_Header * next = *newHeader;
-                    if (!z) {
-                        // If z is 0 this is our descriptor ptr and we need to clean it first.
-                        next = (struct GGGGC_Header *) descriptor;
-                    }
-                    //printf("Object at %lx points to %lx in its %d word\r\n", (long unsigned int) x, (long unsigned int) next, z);
-                    ggggc_markHelper((void *) next);
-                }
-            }
-            z++;
-            bitIter = bitIter << 1;
+    // Pop off our mark stack...
+    void * x = StackLL_Pop();
+
+    while(x)
+    {
+        if (ggggc_isMarked(x)) {
+            x = StackLL_Pop();
+            continue;
         }
+        // Get the descriptor for this object by dereferencing the cleaned descriptor ptr
+        struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
+        ggggc_markObject(x);
+        //printf("Trying to read the descriptor of an object at %lx and that descriptor is %lx\r\n", (long unsigned int) x, (long unsigned int) (((struct GGGGC_Header *) x)->descriptor__ptr));
+        if (descriptor->pointers[0]&1) {
+            long unsigned int bitIter = 1;
+            int z = 0;
+            while (z < 63) {
+                if (descriptor->pointers[0] & bitIter) {
+                    /* so we found a pointer in our object so check it out */
+                    void * newPtr = (void *) (((ggc_size_t *) x)+z);
+                    struct GGGGC_Header **newHeader = (struct GGGGC_Header **) newPtr;
+                    if (*newHeader) {
+                        struct GGGGC_Header * next = *newHeader;
+                        if (!z) {
+                            // If z is 0 this is our descriptor ptr and we need to clean it first.
+                            next = (struct GGGGC_Header *) descriptor;
+                        }
+                        //fprintf(stderr,"Object at %lx points to %lx in its %d word\r\n", (long unsigned int) x, (long unsigned int) next, z);
+                        StackLL_Push((void *) next);
+                    }
+                }
+                z++;
+                bitIter = bitIter << 1;
+            }
+        } else {
+            // It only has it's descriptor ptr in it, this is still necessary to check.
+            StackLL_Push((void *) descriptor);
+        }
+        x = StackLL_Pop();
     }
 }
 
@@ -120,7 +174,7 @@ void ggggc_markHelper(void * x)
 void ggggc_sweep()
 {
     struct GGGGC_Pool *poolIter =  ggggc_poolList;
-    printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
+    //printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
         poolIter->freeList = NULL;
@@ -139,6 +193,7 @@ void ggggc_sweep()
                 struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
                 newFree->next = poolIter->freeList;
                 poolIter->freeList = newFree;
+                //printf("Free object found at %lx\r\n", (long unsigned int) newFree);
             }
             iter = iter + size;
         }
@@ -149,12 +204,14 @@ void ggggc_sweep()
 /* run a collection */
 void ggggc_collect()
 {
-    /* FILLME */
     printf("running mark\r\n");
+    StackLL_Init();
     ggggc_mark();
+    StackLL_Clean();
     printf("running sweep\r\n");
     ggggc_sweep();
     // If we've ran a collection we need to reset the curpool.
+    printf("completed sweep\r\n");
     ggggc_forceCollect = 0;
     ggggc_curPool = ggggc_poolList;
 }
@@ -165,7 +222,6 @@ int ggggc_yield()
 {
     /* FILLME */
     if (ggggc_forceCollect) {
-        printf("Forcecollect is %d\r\n", ggggc_forceCollect);
         ggggc_collect();
     }
     return 0;

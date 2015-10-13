@@ -1,4 +1,16 @@
 *.*~
 *.o
 *~
-
+Collect with mallocs.c
+bench
+testbl
+testbt
+test
+reader.py
+stderr.txt
+tests/ggggcbench
+patched/*
+tests/badlll
+tests/btggggc
+tests/testlol
+tests/Testinglol.o

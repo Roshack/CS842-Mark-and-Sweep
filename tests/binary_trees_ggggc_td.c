@@ -41,6 +41,7 @@ treeNode NewTreeNode(treeNode left, treeNode right, long item)
 long ItemCheck(treeNode tree)
 {
     GGC_PUSH_1(tree);
+    //printf("tree object at %lx has left %lx and right %lx\r\n", (long unsigned int) (tree), (long unsigned int) (tree)->left__ptr,(long unsigned int) (tree)->right__ptr);
     if (GGC_RP(tree, left) == NULL) {
         return GGC_RD(tree, item);
     } else {
@@ -58,7 +59,7 @@ treeNode TopDownTree(long item, unsigned depth)
 
         ret = NewTreeNode(NULL, NULL, item);
         l = TopDownTree(2 * item - 1, depth - 1);
-        r = TopDownTree(2 * item, depth - 1);;
+        r = TopDownTree(2 * item, depth - 1);
         GGC_WP(ret, left, l);
         GGC_WP(ret, right, r);
 
@@ -73,14 +74,14 @@ int main(int argc, char* argv[])
     unsigned   N, depth, minDepth, maxDepth, stretchDepth;
     treeNode   stretchTree, longLivedTree, tempTree;
 
-    N = atol(argv[1]);;
+    N = atol(argv[1]);
 
     minDepth = 4;
 
     if ((minDepth + 2) > N)
         maxDepth = minDepth + 2;
     else
-        maxDepth = N;;
+        maxDepth = N;
 
     stretchDepth = maxDepth + 1;
 
@@ -93,7 +94,7 @@ int main(int argc, char* argv[])
         "stretch tree of depth %u\t check: %li\n",
         stretchDepth,
         ItemCheck(stretchTree)
-    );;
+    );
 
     longLivedTree = TopDownTree(0, maxDepth);
 
@@ -122,7 +123,6 @@ int main(int argc, char* argv[])
             check
         );;
     } /* for(depth = minDepth...) */
-
     printf
     (
         "long lived tree of depth %u\t check: %li\n",
