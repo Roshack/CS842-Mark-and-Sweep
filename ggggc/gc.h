@@ -56,6 +56,8 @@ typedef size_t ggc_size_t;
 #define GGGGC_WORDS_PER_POOL (GGGGC_POOL_BYTES/sizeof(ggc_size_t))
 #define GGGGC_FREE_MAP_SIZE (GGGGC_WORDS_PER_POOL/256)
 #define GGGGC_FREEBIT_ARRAY_SIZE GGGGC_WORDS_PER_POOL/(GGGGC_BITS_PER_WORD*GGGGC_WORD_SIZEOF(ggc_size_t))
+#define GGGGC_MAX_WORD 0xFFFFFFFFFFFFFFFF
+#define GGGGC_FREEMAX_INIT 0xFFFFFFFFFFFFFFFE
 
 /* an empty defined for all the various conditions in which empty defines are necessary */
 #define GGGGC_EMPTY
@@ -75,7 +77,7 @@ struct GGGGC_Pool {
     struct GGGGC_Pool *next;
 
     /* Our free list! */
-    struct GGGGC_FreeObject *freeList;
+    ggc_size_t currentFreeMax;
     ggc_size_t freeBits[GGGGC_FREEBIT_ARRAY_SIZE];
 
     /* the current free space and end of the pool */

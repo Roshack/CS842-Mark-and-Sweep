@@ -91,7 +91,7 @@ void ggggc_useFree(void * x)
     if (startIndex == endIndex) {
         int i = 0;
         for (i = 0; i < hdr->descriptor__ptr->size; i++) {
-            ggc_size_t T = 1 << (startRem+i);
+            ggc_size_t T = 1L << (startRem+i);
             ggggc_curPool->freeBits[startIndex] = ggggc_curPool->freeBits[startIndex]|T;
         }
     } else {
@@ -102,11 +102,11 @@ void ggggc_useFree(void * x)
                 // If our object's size is big and it's location made it so
                 // the end index isn't just start index + 1 then the inside indices
                 // just need to be entirely freed!
-                pool->freeBits[startIndex + i] = 0xFFFFFFFFFFFFFFFF;
+                pool->freeBits[startIndex + i] = GGGGC_FREEMAX_INIT;
             } else if (i == 0) {
                 int j = startRem;
                 for (j = startRem; j < GGGGC_BITS_PER_WORD; j++) {
-                    ggc_size_t T = 1 << j;
+                    ggc_size_t T = 1L << j;
                     ggggc_curPool->freeBits[startIndex] = ggggc_curPool->freeBits[startIndex]|T;
                 }
             } else {
@@ -114,7 +114,7 @@ void ggggc_useFree(void * x)
                 // using <= cuz we made it so the endRem is actaully hte last word
                 // that is in use, not the word we go up to.
                 for (j = 0; j <= endRem; j++) {
-                    ggc_size_t T = 1 << j;
+                    ggc_size_t T = 1L << j;
                     ggggc_curPool->freeBits[startIndex+i] = ggggc_curPool->freeBits[startIndex]|T;
                 }
             }
@@ -138,7 +138,6 @@ void * ggggc_findFree(ggc_size_t size)
                     // If we're still on a streak keep it up
                     streak++;
                     if (streak == size) {
-                        printf("found free object %ld words into pool\r\n", foundStart);
                         return (void *) (ggggc_curPool->start + foundStart);
                     }
                 } else {
@@ -179,11 +178,11 @@ static struct GGGGC_Pool *newPool(int mustSucceed)
     ret->next = NULL;
     ret->free = ret->start;
     ret->end = (ggc_size_t *) ((unsigned char *) ret + GGGGC_POOL_BYTES);
-    ret->freeList = NULL;
     int i = 0;
     for (i = 0; i < GGGGC_FREEBIT_ARRAY_SIZE; i++) {
-        ret->freeBits[i] = 0xFFFFFFFFF;
+        ret->freeBits[i] = 0xFFFFFFFFFFFFFFFF;
     }
+    ret->currentFreeMax = 0xFFFFFFFFFFFFFFFF;
     return ret;
 }
 
@@ -254,7 +253,7 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
 {
     /* Yield at allocation, if it decides to collect we have more space! */
     ggggc_yield();
-    void* userPtr;
+    void* userPtr = NULL;
     struct GGGGC_Header header;
     extern ggc_size_t ggggc_poolCount;
     extern int ggggc_forceCollect;
@@ -267,8 +266,13 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
         ggggc_forceCollect = 0;
         ggggc_curPool = ggggc_poolList = newPool(1);
     }
-    /* Check if there are any free objects if there are try to find a suitable one */
-    userPtr = ggggc_findFree(descriptor->size);
+    /* Check if there are any free objects if there are try to find a suitable one 
+       Max word is used to denote when the pool has been swept recently so that
+       we know that we don't know the max size it can currently take. */
+    if (ggggc_curPool->currentFreeMax == GGGGC_MAX_WORD || ggggc_curPool->currentFreeMax > descriptor->size) {
+        userPtr = ggggc_findFree(descriptor->size);
+        ggggc_curPool->currentFreeMax = descriptor->size;
+    }
 
     /* If there are no suitable free objects allocate at the end of the pool */
     if (!userPtr) {

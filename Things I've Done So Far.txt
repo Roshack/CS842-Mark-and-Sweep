@@ -1,6 +1,0 @@
-Add struct GGGGC_FreeObject to gc.h
-Add a free list to GGGGC_POOL in gc.h
-
-Made it so allocate sort of actaully allocates, currently it just checks if the current pool has enough free space
-if it does then it allocates it at the end (so no checking free objects since those dont exist yet lol) and it also
-doesn't iterate through the pool list at all just creates a new pool if the curPool doesn't have enough space.

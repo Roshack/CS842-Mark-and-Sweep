@@ -11,67 +11,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ggggc/gc.h"
 
-GGC_TYPE(treeNode)
-    GGC_MPTR(treeNode, left);
-    GGC_MPTR(treeNode, right);
-    GGC_MDATA(long, item);
-GGC_END_TYPE(treeNode,
-    GGC_PTR(treeNode, left)
-    GGC_PTR(treeNode, right)
-    )
+typedef struct tn {
+    struct tn*    left;
+    struct tn*    right;
+    long          item;
+} treeNode;
 
-treeNode NewTreeNode(treeNode left, treeNode right, long item)
+
+treeNode* NewTreeNode(treeNode* left, treeNode* right, long item)
 {
-    treeNode    newT = NULL;
+    treeNode*    new;
 
-    GGC_PUSH_3(left, right, newT);
+    new = (treeNode*)malloc(sizeof(treeNode));
 
-    newT = GGC_NEW(treeNode);
+    new->left = left;
+    new->right = right;
+    new->item = item;
 
-    GGC_WP(newT, left, left);
-    GGC_WP(newT, right, right);
-    GGC_WD(newT, item, item);
-
-    return newT;
+    return new;
 } /* NewTreeNode() */
 
 
-long ItemCheck(treeNode tree)
+long ItemCheck(treeNode* tree)
 {
-    GGC_PUSH_1(tree);
-    if (GGC_RP(tree, left) == NULL) {
-        return GGC_RD(tree, item);
-    } else {
-        return GGC_RD(tree, item) + ItemCheck(GGC_RP(tree, left)) - ItemCheck(GGC_RP(tree, right));
-    }
+    if (tree->left == NULL)
+        return tree->item;
+    else
+        return tree->item + ItemCheck(tree->left) - ItemCheck(tree->right);
 } /* ItemCheck() */
 
 
-treeNode TopDownTree(long item, unsigned depth)
+treeNode* BottomUpTree(long item, unsigned depth)
 {
-    if (depth > 0) {
-        treeNode ret, l, r;
-        ret = l = r = NULL;
-        GGC_PUSH_3(ret, l, r);
-
-        ret = NewTreeNode(NULL, NULL, item);
-        l = TopDownTree(2 * item - 1, depth - 1);
-        r = TopDownTree(2 * item, depth - 1);
-        GGC_WP(ret, left, l);
-        GGC_WP(ret, right, r);
-
-        return ret;
-    } else
+    if (depth > 0)
+        return NewTreeNode
+        (
+            BottomUpTree(2 * item - 1, depth - 1),
+            BottomUpTree(2 * item, depth - 1),
+            item
+        );
+    else
         return NewTreeNode(NULL, NULL, item);
 } /* BottomUpTree() */
+
+
+void DeleteTree(treeNode* tree)
+{
+    if (tree->left != NULL)
+    {
+        DeleteTree(tree->left);
+        DeleteTree(tree->right);
+    }
+
+    free(tree);
+} /* DeleteTree() */
 
 
 int main(int argc, char* argv[])
 {
     unsigned   N, depth, minDepth, maxDepth, stretchDepth;
-    treeNode   stretchTree, longLivedTree, tempTree;
+    treeNode   *stretchTree, *longLivedTree, *tempTree;
 
     N = atol(argv[1]);
 
@@ -84,10 +84,7 @@ int main(int argc, char* argv[])
 
     stretchDepth = maxDepth + 1;
 
-    tempTree = stretchTree = longLivedTree = NULL;
-    GGC_PUSH_3(tempTree, stretchTree, longLivedTree);
-
-    stretchTree = TopDownTree(0, stretchDepth);
+    stretchTree = BottomUpTree(0, stretchDepth);
     printf
     (
         "stretch tree of depth %u\t check: %li\n",
@@ -95,7 +92,9 @@ int main(int argc, char* argv[])
         ItemCheck(stretchTree)
     );
 
-    longLivedTree = TopDownTree(0, maxDepth);
+    DeleteTree(stretchTree);
+
+    longLivedTree = BottomUpTree(0, maxDepth);
 
     for (depth = minDepth; depth <= maxDepth; depth += 2)
     {
@@ -107,11 +106,13 @@ int main(int argc, char* argv[])
 
         for (i = 1; i <= iterations; i++)
         {
-            tempTree = TopDownTree(i, depth);
+            tempTree = BottomUpTree(i, depth);
             check += ItemCheck(tempTree);
+            DeleteTree(tempTree);
 
-            tempTree = TopDownTree(-i, depth);
+            tempTree = BottomUpTree(-i, depth);
             check += ItemCheck(tempTree);
+            DeleteTree(tempTree);
         } /* for(i = 1...) */
 
         printf

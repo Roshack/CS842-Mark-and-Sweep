@@ -1,6 +1,6 @@
 make
 cd tests/
-rm Testinglol.o
-make testlol
-./testlol
+rm project1-test.o
+make projecttest
+./projecttest
 cd ../

@@ -11,7 +11,8 @@ LIBS=-lm
 BTOBJS=binary_trees_td.o
 BTGCOBJS=binary_trees_gc_td.o
 BTGGGGCOBJS=binary_trees_ggggc_td.o
-TESTLOL=Testinglol.o
+
+PROJTEST = project1-test.o
 
 BADLLLOBJS=badlll.o
 
@@ -21,7 +22,7 @@ GCBENCHOBJS=gc_bench/GCBench.o
 
 GGGGCBENCHOBJS=gc_bench/GCBench.ggggc.o
 
-all: bt btgc btggggc badlll gcbench ggggcbench testlol
+all: bt btgc btggggc badlll gcbench ggggcbench
 
 bt: $(BTOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BTOBJS) $(LIBS) -o bt
@@ -32,11 +33,11 @@ btgc: $(BTGCOBJS)
 btggggc: $(BTGGGGCOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BTGGGGCOBJS) $(GGGGC_LIBS) $(LIBS) -o btggggc
 
-testlol: $(TESTLOL)
-	$(LD) $(CFLAGS) $(LDFLAGS) $(TESTLOL) $(GGGGC_LIBS) $(LIBS) -o testlol
-
 badlll: $(BADLLLOBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(BADLLLOBJS) $(GGGGC_LIBS) $(LIBS) -o badlll
+
+projecttest: $(PROJTEST)
+	$(LD) $(CFLAGS) $(LDFLAGS) $(PROJTEST) $(GGGGC_LIBS) $(LIBS) -o projecttest
 
 remember: $(REMEMBEROBJS)
 	$(LD) $(CFLAGS) $(LDFLAGS) $(REMEMBEROBJS) $(GGGGC_LIBS) $(LIBS) -o remember
@@ -60,4 +61,3 @@ clean:
 	rm -f $(REMEMBEROBJS) remember
 	rm -f $(GCBENCHOBJS) gcbench
 	rm -f $(GGGGCBENCHOBJS) ggggcbench
-

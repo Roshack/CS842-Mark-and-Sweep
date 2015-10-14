@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "ggggc/gc.h"
-
+// make projecttest
 
 GGC_TYPE(treeNode)
     GGC_MPTR(treeNode, left);
@@ -47,11 +47,13 @@ treeNode TopDownTree(long item, unsigned depth)
         return NewTreeNode(NULL, NULL, item);
 } /* BottomUpTree() */
 
+
+// Call this function to allocate an object that should be freed!
 void DestroyMyInsides()
 {
     treeNode x = NewTreeNode(NULL,NULL,2);
     GGC_PUSH_1(x);
-    printf("Hey I allocated x at %lx\r\n", (long unsigned int) ((void *) x));
+    //printf("Hey I allocated x at %lx\r\n", (long unsigned int) ((void *) x));
     return;
 
 }
@@ -65,6 +67,10 @@ int main(int argc, char* argv[])
     treeNode first = NULL;
     treeNode prev = NULL;
     GGC_PUSH_5(x, y, z,first,prev);
+    int i = 0;
+    for (i = 0; i < 3000000; i++) {
+        DestroyMyInsides();
+    }
     x = NewTreeNode(y,z,5);
     DestroyMyInsides();
     y = NewTreeNode(x,z,12);
@@ -76,8 +82,6 @@ int main(int argc, char* argv[])
     y = NULL;
     y = NewTreeNode(x,x,2);
     z = NewTreeNode(x,y,5);
-    DestroyMyInsides();
-    ggggc_collect();
     z = NewTreeNode(x,y,5);
     z = NewTreeNode(x,y,5);
     z = NewTreeNode(x,y,5);

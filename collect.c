@@ -50,33 +50,32 @@ void ggggc_freeObject(void *x)
     if (startIndex == endIndex) {
         int i = 0;
         for (i = 0; i < hdr->descriptor__ptr->size; i++) {
-            ggc_size_t T = 1 << (startRem+i);
+            ggc_size_t T = 1L << (startRem+i);
             full = full^T;
         }
-        pool->freeBits[startIndex] = pool->freeBits[startIndex] & full;
+        pool->freeBits[startIndex] = pool->freeBits[startIndex]&full;
     } else {
         ggc_size_t diff = endIndex - startIndex;
         int i = 0;
         for (i = 0; i < diff; i++) {
+            full = 0xFFFFFFFFFFFFFFFF;
             if (i!=0 && i!=(diff-1)) {
                 // If our object's size is big and it's location made it so
                 // the end index isn't just start index + 1 then the inside indices
                 // just need to be entirely freed!
                 full = 0;
             } else if (i == 0) {
-                full = 0xFFFFFFFFFFFFFFFF;
                 int j = startRem;
                 for (j = startRem; j < GGGGC_BITS_PER_WORD; j++) {
-                    ggc_size_t T = 1 << j;
+                    ggc_size_t T = 1L << j;
                     full = full^T;
                 }
             } else {
-                full = 0xFFFFFFFFFFFFFFFF;
                 int j = 0;
                 // using <= cuz we made it so the endRem is actaully hte last word
                 // that is in use, not the word we go up to.
                 for (j = 0; j <= endRem; j++) {
-                    ggc_size_t T = 1 << j;
+                    ggc_size_t T = 1L << j;
                     full = full^T;
                 }
             }
@@ -234,8 +233,11 @@ void ggggc_sweep()
     //printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
-        poolIter->freeList = NULL;
-        struct GGGGC_FreeObject * oldFree = NULL;
+        poolIter->currentFreeMax = GGGGC_MAX_WORD;
+        int i = 0;
+        for (i = 0; i < GGGGC_FREEBIT_ARRAY_SIZE; i++) {
+            poolIter->freeBits[i] = GGGGC_MAX_WORD;
+        }
         while (iter < poolIter->free && iter) {
             /* if object is not marked add to free list... */
             struct GGGGC_Descriptor *desc = ggggc_cleanMark((void *) iter);
@@ -251,7 +253,6 @@ void ggggc_sweep()
                 // Turns out after some testing doing it this way is WAYYYYYYYYYYY faster for
                 // the bench test program so.... yeah gonna keep doing it this way...
                 ggggc_freeObject(iter);
-            
                 //struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
 
                 //printf("iter is %lx\r\n", (long unsigned int) iter);
