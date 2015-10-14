@@ -178,33 +178,29 @@ void ggggc_mark()
         }
         poolIter = poolIter->next;
     }
-    struct GGGGC_PointerStack *stack_iter;
-    int x = 0;
-    while (x < 2) {
-        // If it's our first time through loop go through pointerstack if not pointerstack globals
-        stack_iter = x == 0 ? ggggc_pointerStack : ggggc_pointerStackGlobals;
-        while(stack_iter) {
-            struct GGGGC_Header *** ptrptr = (struct GGGGC_Header ***) stack_iter->pointers;
-            ggc_size_t ptrIter = 0;
-            while (ptrIter < stack_iter->size) {
-                if (*(ptrptr[ptrIter])) {
-                    /* Here header is the pointer to the header of the object we're currently looking at
-                       the reference in the stack for (given by stack_iter), so we can mark it by
-                       updating header->descriptor_ptr */
-                    struct GGGGC_Header *header= *(ptrptr[ptrIter]);
-                    /* Check if this object is already marked, the first object off the stack never will be,
-                       but after recursing down the first one future ones could be */
-                    if (!ggggc_isMarked((void*) header)) {
-                        //fprintf(stderr,"First found root %lx\r\n", (long unsigned int) header);
-                        StackLL_Push((void *) header);
-                        ggggc_markHelper();
-                    }
+    struct GGGGC_PointerStack *stack_iter = ggggc_pointerStack;
+    while(stack_iter) {
+        struct GGGGC_Header *** ptrptr = (struct GGGGC_Header ***) stack_iter->pointers;
+        ggc_size_t ptrIter = 0;
+        while (ptrIter < stack_iter->size) {
+            if (*ptrptr[ptrIter]) {
+                /* Here header is the pointer to the header of the object we're currently looking at
+                   the reference in the stack for (given by stack_iter), so we can mark it by
+                   updating header->descriptor_ptr */
+                struct GGGGC_Header *header= *ptrptr[ptrIter];
+                /* Check if this object is already marked, the first object off the stack never will be,
+                   but after recursing down the first one future ones could be */
+                printf("Trying to read header at %lx\r\n", (long unsigned int) header);
+                if (!ggggc_isMarked((void*) header)) {
+                    //fprintf(stderr,"First found root %lx\r\n", (long unsigned int) header);
+                    printf("I read it!\r\n");
+                    StackLL_Push((void *) header);
+                    ggggc_markHelper();
                 }
-                ptrIter++;
             }
-            stack_iter = stack_iter->next;
+            ptrIter++;
         }
-        x++;
+        stack_iter = stack_iter->next;
     }
 }
 
