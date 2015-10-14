@@ -128,16 +128,26 @@ void StackLL_Clean()
 
 extern int ggggc_forceCollect;
 
+
 long unsigned int ggggc_isMarked(void * x)
 {  
-    return (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr & 1l;
+    struct GGGGC_Pool *pool = (struct GGGGC_Pool *) (GGGGC_POOL_OUTER_MASK & (long unsigned int) x);
+    ggc_size_t startWord = ggggc_wordsIntoPool(x);
+    ggc_size_t ind = startWord/GGGGC_BITS_PER_WORD;
+    ggc_size_t rem = startWord % GGGGC_BITS_PER_WORD;
+    ggc_size_t mask = 1L << rem;
+    return ((pool->freeBits[ind]) & mask);
+    //return (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr & 1l;
 }
 
 void ggggc_markObject(void *x)
 {
+    ggggc_useFree(x);
+    /*
     struct GGGGC_Header *header = (struct GGGGC_Header *) x;
     header->descriptor__ptr = (struct GGGGC_Descriptor *) 
                               ((long unsigned int) header->descriptor__ptr | 1l );
+    */
 }
 void ggggc_unmarkObject(void *x)
 {
@@ -156,6 +166,18 @@ void * ggggc_cleanMark(void *x)
 
 void ggggc_mark()
 {
+    struct GGGGC_Pool *poolIter =  ggggc_poolList;
+    //printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
+    while (poolIter) {
+        ggc_size_t * iter = poolIter->start;
+        poolIter->currentFreeMax = GGGGC_MAX_WORD;
+        poolIter->firstFree = 0;
+        int i = 0;
+        for (i = 0; i < GGGGC_FREEBIT_ARRAY_SIZE; i++) {
+            poolIter->freeBits[i] = 0;
+        }
+        poolIter = poolIter->next;
+    }
     struct GGGGC_PointerStack *stack_iter;
     int x = 0;
     while (x < 2) {
@@ -186,7 +208,6 @@ void ggggc_markHelper()
 {
     // Pop off our mark stack...
     void * x = StackLL_Pop();
-
     while(x)
     {
         if (ggggc_isMarked(x)) {
@@ -194,6 +215,7 @@ void ggggc_markHelper()
             continue;
         }
         // Get the descriptor for this object by dereferencing the cleaned descriptor ptr
+        //printf("Marking object %lx of size %ld\r\n", (long unsigned int) x, ((struct GGGGC_Header *) x)->descriptor__ptr->size);
         struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
         ggggc_markObject(x);
         //printf("Trying to read the descriptor of an object at %lx and that descriptor is %lx\r\n", (long unsigned int) x, (long unsigned int) (((struct GGGGC_Header *) x)->descriptor__ptr));
@@ -286,8 +308,8 @@ void ggggc_collect()
     StackLL_Init();
     ggggc_mark();
     StackLL_Clean();
-    //printf("running sweep\r\n");
-    ggggc_sweep();
+    //printf("Finished mark\r\n");
+    //ggggc_sweep();
     // If we've ran a collection we need to reset the curpool.
     //printf("completed sweep\r\n");
     ggggc_forceCollect = 0;

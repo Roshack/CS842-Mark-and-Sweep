@@ -68,6 +68,7 @@ int main(int argc, char* argv[])
     treeNode prev = NULL;
     GGC_PUSH_5(x, y, z,first,prev);
     int i = 0;
+    //3000000
     for (i = 0; i < 3000000; i++) {
         DestroyMyInsides();
     }
