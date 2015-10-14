@@ -234,6 +234,7 @@ void ggggc_sweep()
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
         poolIter->currentFreeMax = GGGGC_MAX_WORD;
+        poolIter->firstFree = 0;
         int i = 0;
         for (i = 0; i < GGGGC_FREEBIT_ARRAY_SIZE; i++) {
             poolIter->freeBits[i] = GGGGC_MAX_WORD;

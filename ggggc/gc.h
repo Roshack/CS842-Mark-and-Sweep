@@ -77,6 +77,7 @@ struct GGGGC_Pool {
     struct GGGGC_Pool *next;
 
     /* Our free list! */
+    ggc_size_t firstFree;
     ggc_size_t currentFreeMax;
     ggc_size_t freeBits[GGGGC_FREEBIT_ARRAY_SIZE];
 
