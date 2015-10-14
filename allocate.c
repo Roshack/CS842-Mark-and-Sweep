@@ -81,26 +81,21 @@ void ggggc_useFree(void * x)
 {
     struct GGGGC_Header *hdr = x;
     struct GGGGC_Pool *pool = (struct GGGGC_Pool *) (GGGGC_POOL_OUTER_MASK & (long unsigned int) x);
-    //printf("pool of %lx is %lx\r\n", (long unsigned int) x, (long unsigned int) pool);
     ggc_size_t size = hdr->descriptor__ptr->size;
     ggc_size_t startWord = ggggc_wordsIntoPool(x);
     if(!(hdr->descriptor__ptr)) {
         return;
     }
-    //printf("header ptr is %lx\r\n", (long unsigned int) hdr->descriptor__ptr);
     ggc_size_t endWord = startWord + hdr->descriptor__ptr->size;
     ggc_size_t iter = startWord;
     ggc_size_t ind;
     ggc_size_t rem;
     ggc_size_t mask;
-    //printf("using free for object of size %ld at %lx\r\n", hdr->descriptor__ptr->size, (long unsigned int) x);
     while (iter < endWord) {
         ind = iter/GGGGC_BITS_PER_WORD;
         rem = iter%GGGGC_BITS_PER_WORD;
         mask = 1L << rem;
-        //printf("freebits before using mask %lx\r\n", pool->freeBits[ind]);
         pool->freeBits[ind] = pool->freeBits[ind]|mask;
-        //printf("freebits after using mask %lx\r\n", pool->freeBits[ind]);
         iter++;
     }
 }
@@ -112,7 +107,6 @@ void * ggggc_findFree(ggc_size_t size)
     ggc_size_t streak = 0;
     ggc_size_t firstFound = 0;
     for (index = (ggggc_curPool->firstFree)/GGGGC_BITS_PER_WORD; index < GGGGC_FREEBIT_ARRAY_SIZE; index++) {
-        //printf("index is %ld and it looks like %lx\r\n", index, ggggc_curPool->freeBits[index]);
         ggc_size_t bitIter = 1;
         ggc_size_t bitCount = 0;
         for (bitCount = 0; bitCount < GGGGC_BITS_PER_WORD; bitCount++) {
@@ -231,10 +225,8 @@ void ggggc_zero_object(struct GGGGC_Header *hdr)
     ggc_size_t size = hdr->descriptor__ptr->size - GGGGC_WORD_SIZEOF(*hdr);
     ggc_size_t i = 0;
     ggc_size_t * iter = ((ggc_size_t *) hdr) + 1;
-    //printf("Zeroing object at %lx starting at %lx\r\n", (long unsigned int) hdr, (long unsigned int) iter);
     while (i < size) {
         iter[0] = 0;
-        //printf("For object %lx wiping %lx\r\n", (long unsigned int) hdr, (long unsigned int) iter);
         iter = iter + 1;
         i++;
     }

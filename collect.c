@@ -137,22 +137,18 @@ long unsigned int ggggc_isMarked(void * x)
     ggc_size_t rem = startWord % GGGGC_BITS_PER_WORD;
     ggc_size_t mask = 1L << rem;
     return ((pool->freeBits[ind]) & mask);
-    //return (long unsigned int) ((struct GGGGC_Header *) x)->descriptor__ptr & 1l;
 }
 
 void ggggc_markObject(void *x)
 {
+    // Function became redundant sort of after switching to bitmapfree list since we
+    // now have useFree but hey whatever not gonna refactor now!
     ggggc_useFree(x);
-    /*
-    struct GGGGC_Header *header = (struct GGGGC_Header *) x;
-    header->descriptor__ptr = (struct GGGGC_Descriptor *) 
-                              ((long unsigned int) header->descriptor__ptr | 1l );
-    */
 }
 void ggggc_unmarkObject(void *x)
 {
     struct GGGGC_Header *header = (struct GGGGC_Header *) x;
-    /* probably shouldn't hardcode constant for max long -1 but oh welllllll */
+    /* probably shouldn't hardcode constant for max long-1 but oh welllllll */
     header->descriptor__ptr = (struct GGGGC_Descriptor *) 
                               ((long unsigned int) header->descriptor__ptr & 0xFFFFFFFFFFFFFFFE );
 }
@@ -167,7 +163,6 @@ void * ggggc_cleanMark(void *x)
 void ggggc_mark()
 {
     struct GGGGC_Pool *poolIter =  ggggc_poolList;
-    //printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
         poolIter->currentFreeMax = GGGGC_MAX_WORD;
@@ -190,10 +185,7 @@ void ggggc_mark()
                 struct GGGGC_Header *header= *ptrptr[ptrIter];
                 /* Check if this object is already marked, the first object off the stack never will be,
                    but after recursing down the first one future ones could be */
-                //printf("Trying to read header at %lx\r\n", (long unsigned int) header);
                 if (!ggggc_isMarked((void*) header)) {
-                    //fprintf(stderr,"First found root %lx\r\n", (long unsigned int) header);
-                    //printf("I read it!\r\n");
                     StackLL_Push((void *) header);
                     ggggc_markHelper();
                 }
@@ -215,10 +207,10 @@ void ggggc_markHelper()
             continue;
         }
         // Get the descriptor for this object by dereferencing the cleaned descriptor ptr
-        //printf("Marking object %lx of size %ld\r\n", (long unsigned int) x, ((struct GGGGC_Header *) x)->descriptor__ptr->size);
+        // SHouldn't need to clean descriptors anymore since changing to bitmap free list but
+        // better safe than sorry when changing things the nightbefore/dayof due.
         struct GGGGC_Descriptor *descriptor = (struct GGGGC_Descriptor *) ggggc_cleanMark(x);
         ggggc_markObject(x);
-        //printf("Trying to read the descriptor of an object at %lx and that descriptor is %lx\r\n", (long unsigned int) x, (long unsigned int) (((struct GGGGC_Header *) x)->descriptor__ptr));
         if (descriptor->pointers[0]&1) {
             long unsigned int bitIter = 1;
             int z = 0;
@@ -231,9 +223,10 @@ void ggggc_markHelper()
                         struct GGGGC_Header * next = *newHeader;
                         if (!z) {
                             // If z is 0 this is our descriptor ptr and we need to clean it first.
+                            // This shouldn't be needed since switching to bitmap free list but
+                            // I'm scared to take it out :(
                             next = (struct GGGGC_Header *) descriptor;
                         }
-                        //fprintf(stderr,"Object at %lx points to %lx in its %d word\r\n", (long unsigned int) x, (long unsigned int) next, z);
                         StackLL_Push((void *) next);
                     }
                 }
@@ -252,7 +245,6 @@ void ggggc_markHelper()
 void ggggc_sweep()
 {
     struct GGGGC_Pool *poolIter =  ggggc_poolList;
-    //printf("pooliter is %lx\r\n", (long unsigned int) poolIter);
     while (poolIter) {
         ggc_size_t * iter = poolIter->start;
         poolIter->currentFreeMax = GGGGC_MAX_WORD;
@@ -269,31 +261,8 @@ void ggggc_sweep()
             if (ggggc_isMarked(iter)) {
                 ggggc_unmarkObject(iter); 
             } else {
-                // Should put it on the freelist if it's not reachable! duh.
-                // Right now putting each object we find at the START Of the freelist... maybe not
-                // the best but oh well. Easily solved by adding a variable to keep track of
-                // where we are in the free list.
-                // Turns out after some testing doing it this way is WAYYYYYYYYYYY faster for
-                // the bench test program so.... yeah gonna keep doing it this way...
+                // Free the object!
                 ggggc_freeObject(iter);
-                //struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
-
-                //printf("iter is %lx\r\n", (long unsigned int) iter);
-                //printf("newfree Next is %lx\r\n", (long unsigned int) &newFree->next);
-
-                //newFree->next = poolIter->freeList;
-                //poolIter->freeList = newFree;
-
-                /*
-                if (oldFree) {
-                    oldFree->next = newFree;
-                    oldFree = newFree;
-                } else {
-                    newFree->next = NULL;
-                    poolIter->freeList = newFree;
-                    oldFree = newFree;
-                }*/
-                //printf("Free object found at %lx\r\n", (long unsigned int) newFree);
             }
             iter = iter + size;
         }
@@ -304,14 +273,9 @@ void ggggc_sweep()
 /* run a collection */
 void ggggc_collect()
 {
-    //printf("running mark\r\n");
     StackLL_Init();
     ggggc_mark();
     StackLL_Clean();
-    //printf("Finished mark\r\n");
-    //ggggc_sweep();
-    // If we've ran a collection we need to reset the curpool.
-    //printf("completed sweep\r\n");
     ggggc_forceCollect = 0;
     ggggc_curPool = ggggc_poolList;
 }
@@ -320,7 +284,6 @@ void ggggc_collect()
 /* explicitly yield to the collector */
 int ggggc_yield()
 {
-    /* FILLME */
     if (ggggc_forceCollect) {
         ggggc_collect();
     }
