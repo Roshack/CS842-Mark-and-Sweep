@@ -28,6 +28,63 @@
 extern "C" {
 #endif
 
+
+ggc_size_t ggggc_wordsIntoPool(void *x)
+{
+    struct GGGGC_Pool *pool = (struct GGGGC_Pool *) (GGGGC_POOL_OUTER_MASK & (ggc_size_t) x);
+    return ((ggc_size_t) x - (ggc_size_t) pool->start)/sizeof(ggc_size_t);
+}
+
+void ggggc_freeObject(void *x)
+{
+    struct GGGGC_Header *hdr = x;
+    struct GGGGC_Pool *pool = (struct GGGGC_Pool *) (GGGGC_POOL_OUTER_MASK & (long unsigned int) x);
+    ggc_size_t size = hdr->descriptor__ptr->size;
+    ggc_size_t startWord = ggggc_wordsIntoPool(x);
+    ggc_size_t endWord = startWord + hdr->descriptor__ptr->size - 1;
+    ggc_size_t startIndex = startWord/GGGGC_BITS_PER_WORD;
+    ggc_size_t endIndex = endWord/GGGGC_BITS_PER_WORD;
+    int startRem = startWord % GGGGC_BITS_PER_WORD;
+    int endRem = endWord % GGGGC_BITS_PER_WORD;
+    ggc_size_t full = 0xFFFFFFFFFFFFFFFF;
+    if (startIndex == endIndex) {
+        int i = 0;
+        for (i = 0; i < hdr->descriptor__ptr->size; i++) {
+            ggc_size_t T = 1 << (startRem+i);
+            full = full^T;
+        }
+        pool->freeBits[startIndex] = pool->freeBits[startIndex] & full;
+    } else {
+        ggc_size_t diff = endIndex - startIndex;
+        int i = 0;
+        for (i = 0; i < diff; i++) {
+            if (i!=0 && i!=(diff-1)) {
+                // If our object's size is big and it's location made it so
+                // the end index isn't just start index + 1 then the inside indices
+                // just need to be entirely freed!
+                full = 0;
+            } else if (i == 0) {
+                full = 0xFFFFFFFFFFFFFFFF;
+                int j = startRem;
+                for (j = startRem; j < GGGGC_BITS_PER_WORD; j++) {
+                    ggc_size_t T = 1 << j;
+                    full = full^T;
+                }
+            } else {
+                full = 0xFFFFFFFFFFFFFFFF;
+                int j = 0;
+                // using <= cuz we made it so the endRem is actaully hte last word
+                // that is in use, not the word we go up to.
+                for (j = 0; j <= endRem; j++) {
+                    ggc_size_t T = 1 << j;
+                    full = full^T;
+                }
+            }
+            pool->freeBits[startIndex + i] = pool->freeBits[startIndex + i] & full;
+        }
+    }  
+}
+
 struct StackLL 
 {
     void *data;
@@ -185,7 +242,7 @@ void ggggc_sweep()
             size_t size;
             size = desc->size;
             if (ggggc_isMarked(iter)) {
-                ggggc_unmarkObject(iter);
+                ggggc_unmarkObject(iter); 
             } else {
                 // Should put it on the freelist if it's not reachable! duh.
                 // Right now putting each object we find at the START Of the freelist... maybe not
@@ -193,9 +250,16 @@ void ggggc_sweep()
                 // where we are in the free list.
                 // Turns out after some testing doing it this way is WAYYYYYYYYYYY faster for
                 // the bench test program so.... yeah gonna keep doing it this way...
-                struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
-                newFree->next = poolIter->freeList;
-                poolIter->freeList = newFree;
+                ggggc_freeObject(iter);
+            
+                //struct GGGGC_FreeObject *newFree = (struct GGGGC_FreeObject *) iter;
+
+                //printf("iter is %lx\r\n", (long unsigned int) iter);
+                //printf("newfree Next is %lx\r\n", (long unsigned int) &newFree->next);
+
+                //newFree->next = poolIter->freeList;
+                //poolIter->freeList = newFree;
+
                 /*
                 if (oldFree) {
                     oldFree->next = newFree;

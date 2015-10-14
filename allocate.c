@@ -77,6 +77,79 @@ extern "C" {
 
 #endif
 
+void ggggc_useFree(void * x)
+{
+    struct GGGGC_Header *hdr = x;
+    struct GGGGC_Pool *pool = (struct GGGGC_Pool *) (GGGGC_POOL_OUTER_MASK & (long unsigned int) x);
+    ggc_size_t size = hdr->descriptor__ptr->size;
+    ggc_size_t startWord = ggggc_wordsIntoPool(x);
+    ggc_size_t endWord = startWord + hdr->descriptor__ptr->size - 1;
+    ggc_size_t startIndex = startWord/GGGGC_BITS_PER_WORD;
+    ggc_size_t endIndex = endWord/GGGGC_BITS_PER_WORD;
+    int startRem = startWord % GGGGC_BITS_PER_WORD;
+    int endRem = endWord % GGGGC_BITS_PER_WORD;
+    if (startIndex == endIndex) {
+        int i = 0;
+        for (i = 0; i < hdr->descriptor__ptr->size; i++) {
+            ggc_size_t T = 1 << (startRem+i);
+            ggggc_curPool->freeBits[startIndex] = ggggc_curPool->freeBits[startIndex]|T;
+        }
+    } else {
+        ggc_size_t diff = endIndex - startIndex;
+        int i = 0;
+        for (i = 0; i < diff; i++) {
+            if (i!=0 && i!=(diff-1)) {
+                // If our object's size is big and it's location made it so
+                // the end index isn't just start index + 1 then the inside indices
+                // just need to be entirely freed!
+                pool->freeBits[startIndex + i] = 0xFFFFFFFFFFFFFFFF;
+            } else if (i == 0) {
+                int j = startRem;
+                for (j = startRem; j < GGGGC_BITS_PER_WORD; j++) {
+                    ggc_size_t T = 1 << j;
+                    ggggc_curPool->freeBits[startIndex] = ggggc_curPool->freeBits[startIndex]|T;
+                }
+            } else {
+                int j = 0;
+                // using <= cuz we made it so the endRem is actaully hte last word
+                // that is in use, not the word we go up to.
+                for (j = 0; j <= endRem; j++) {
+                    ggc_size_t T = 1 << j;
+                    ggggc_curPool->freeBits[startIndex+i] = ggggc_curPool->freeBits[startIndex]|T;
+                }
+            }
+        }
+    }  
+}
+
+void * ggggc_findFree(ggc_size_t size)
+{
+    ggc_size_t index = 0;
+    ggc_size_t foundStart = 0;
+    ggc_size_t streak = 0;
+    for (index = 0; index < GGGGC_FREEBIT_ARRAY_SIZE; index++) {
+        ggc_size_t bitIter = 1;
+        ggc_size_t bitCount = 0;
+        for (bitCount = 0; bitCount < GGGGC_BITS_PER_WORD; bitCount++) {
+            bitIter = 1 << bitCount;
+            ggc_size_t current = index*GGGGC_BITS_PER_WORD + bitCount;
+            if (!(ggggc_curPool->freeBits[index] & bitIter)) {
+                if (current == foundStart+streak) {
+                    // If we're still on a streak keep it up
+                    streak++;
+                    if (streak == size) {
+                        printf("found free object %ld words into pool\r\n", foundStart);
+                        return (void *) (ggggc_curPool->start + foundStart);
+                    }
+                } else {
+                    streak = 1;
+                    foundStart = current;
+                }
+            }
+        }
+    }
+    return NULL;
+}
 
 /* pools which are freely available */
 static struct GGGGC_Pool *freePoolsHead, *freePoolsTail;
@@ -107,7 +180,10 @@ static struct GGGGC_Pool *newPool(int mustSucceed)
     ret->free = ret->start;
     ret->end = (ggc_size_t *) ((unsigned char *) ret + GGGGC_POOL_BYTES);
     ret->freeList = NULL;
-
+    int i = 0;
+    for (i = 0; i < GGGGC_FREEBIT_ARRAY_SIZE; i++) {
+        ret->freeBits[i] = 0xFFFFFFFFF;
+    }
     return ret;
 }
 
@@ -192,28 +268,10 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
         ggggc_curPool = ggggc_poolList = newPool(1);
     }
     /* Check if there are any free objects if there are try to find a suitable one */
-    int suitableFree = 0;
-    
-    if (ggggc_curPool->freeList) {
-        struct GGGGC_FreeObject *freeIter = ggggc_curPool->freeList;
-        struct GGGGC_FreeObject *prevIter = NULL;
-        while (freeIter && !suitableFree) {
-            if (freeIter->descriptor__ptr->size == descriptor->size) {
-                suitableFree = 1;
-                userPtr = freeIter;
-                //fprintf(stderr,"allocating to freeobject %lx\r\n", (long unsigned int) freeIter);
-                if (prevIter) {
-                    prevIter->next = freeIter->next;
-                } else {
-                    ggggc_curPool->freeList = freeIter->next;
-                }
-            }
-            prevIter = freeIter;
-            freeIter = freeIter->next;
-        }
-    }
+    userPtr = ggggc_findFree(descriptor->size);
+
     /* If there are no suitable free objects allocate at the end of the pool */
-    if (!suitableFree) {
+    if (!userPtr) {
         ggc_size_t size = descriptor->size;
         if (ggggc_curPool->free + size >= ggggc_curPool->end) {
             /* If the object too big for our current pool get a new one */
@@ -235,9 +293,11 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
         userPtr = (ggggc_curPool->free);
         ggggc_curPool->free += size;
     }
+
     //printf("User ptr allocated at: %lx\r\n", (long unsigned int) userPtr);
     ((struct GGGGC_Header *) userPtr)[0] = header;
-    //ggggc_zero_object((struct GGGGC_Header*) userPtr);
+    ggggc_useFree(userPtr);
+    ggggc_zero_object((struct GGGGC_Header*) userPtr);
     return userPtr;
 }
 

@@ -32,6 +32,21 @@ void ggggc_sweep();
    returns 1 if marked 0 if not */
 long unsigned int ggggc_isMarked(void * x);
 
+// Given a pointer to where a header is stored marks the freeBits off
+// in that objects pool.
+void ggggc_useFree(void * x);
+
+// Looks in the current pool for free space of size size
+// if found returns a pointer to where to place the object,
+// if not found returns the null ptr.
+void * ggggc_findFree(ggc_size_t size);
+
+/* take in a header and update the freebits of it's pool to be free */
+void ggggc_freeObject(void *x);
+
+/* returns how many words into it's pool a hdr object is */
+ggc_size_t ggggc_wordsIntoPool(void *x);
+
 /* Given a pointer to a header returns that headers 
    descriptor__ptr after masking the possibly set mark bit */
 void * ggggc_cleanMark(void *x);
