@@ -277,6 +277,7 @@ void *ggggc_malloc(struct GGGGC_Descriptor *descriptor)
                 ggggc_curPool = ggggc_curPool->next;
                 //printf("recurisvely calling malloc...\r\n");
                 return ggggc_malloc(descriptor);
+            } else {
             }
             struct GGGGC_Pool *temp = newPool(1);
             // Force a collection when we need to allocate a new pool.
