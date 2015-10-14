@@ -190,10 +190,10 @@ void ggggc_mark()
                 struct GGGGC_Header *header= *ptrptr[ptrIter];
                 /* Check if this object is already marked, the first object off the stack never will be,
                    but after recursing down the first one future ones could be */
-                printf("Trying to read header at %lx\r\n", (long unsigned int) header);
+                //printf("Trying to read header at %lx\r\n", (long unsigned int) header);
                 if (!ggggc_isMarked((void*) header)) {
                     //fprintf(stderr,"First found root %lx\r\n", (long unsigned int) header);
-                    printf("I read it!\r\n");
+                    //printf("I read it!\r\n");
                     StackLL_Push((void *) header);
                     ggggc_markHelper();
                 }

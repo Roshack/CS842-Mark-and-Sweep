@@ -84,6 +84,10 @@ void ggggc_useFree(void * x)
     //printf("pool of %lx is %lx\r\n", (long unsigned int) x, (long unsigned int) pool);
     ggc_size_t size = hdr->descriptor__ptr->size;
     ggc_size_t startWord = ggggc_wordsIntoPool(x);
+    if(!(hdr->descriptor__ptr)) {
+        return;
+    }
+    //printf("header ptr is %lx\r\n", (long unsigned int) hdr->descriptor__ptr);
     ggc_size_t endWord = startWord + hdr->descriptor__ptr->size;
     ggc_size_t iter = startWord;
     ggc_size_t ind;
